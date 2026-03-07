@@ -1,0 +1,7 @@
+cryptography>=41.0.0
+pytest>=7.0
+pytest-asyncio>=0.23.0
+eth-account>=0.10.0
+web3>=6.0.0
+qrcode[pil]>=7.4.2
+stem>=1.8.2

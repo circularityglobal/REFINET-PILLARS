@@ -1,0 +1,35 @@
+[meta]
+name = Uniswap V3
+slug = uniswap-v3
+version = 1.0.0
+chain_id = 1
+contract = 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45
+author_pid = af1cc79d09d653a611a653dcd03d3efa34e14c32a0e6e518c534b77249397ee4
+author_address = 0x0000000000000000000000000000000000000000
+description = Swap tokens on Uniswap V3 without a browser
+published = 2025-01-01
+
+[abi]
+# Human-readable ABI
+exactInputSingle((address,address,uint24,address,uint256,uint256,uint160)) -> uint256
+exactOutputSingle((address,address,uint24,address,uint256,uint256,uint160)) -> uint256
+multicall(bytes[]) -> bytes[]
+
+[docs]
+# exactInputSingle
+Swaps an exact amount of one token for as much as possible of another.
+Gas estimate: ~150,000
+
+# exactOutputSingle
+Swaps as little as possible of one token for an exact amount of another.
+Gas estimate: ~160,000
+
+[flows]
+swap:
+  1. Approve tokenIn spending
+  2. Call exactInputSingle with your parameters
+  3. Verify output token balance increased
+
+[warnings]
+Always verify slippage tolerance before signing.
+High-fee pools (1%) are for exotic pairs.

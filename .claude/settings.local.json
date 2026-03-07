@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 pillar.py --gopher-port 7071 --verbose)"
+    ]
+  }
+}

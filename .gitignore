@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Testing
+.pytest_cache/
+
+# Databases (user-specific, generated at runtime)
+*.db
+*.db-journal
+*.db-wal
+
+# Tor hidden service keys (CRITICAL: never commit)
+tor_data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+*.env.local
