@@ -43,8 +43,8 @@ Option B — From source:
 
 Option C — Docker:
 
-    docker pull refinet/pillar:0.2.0
-    docker run -p 7070:7070 -p 70:70 -v pillar-data:/root/.refinet refinet/pillar:0.2.0
+    docker pull refinet/pillar:0.3.0
+    docker run -p 7070:7070 -p 70:70 -v pillar-data:/root/.refinet refinet/pillar:0.3.0
 
 Step 3: First Run
 -----------------

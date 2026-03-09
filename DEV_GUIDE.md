@@ -2,7 +2,7 @@
 
 **Building on top of the REFInet Gopherspace Platform**
 
-Version 0.2.0 | March 2026
+Version 0.3.0 | March 2026
 
 ---
 
@@ -33,7 +33,7 @@ Version 0.2.0 | March 2026
 
 This guide is for developers who want to **build on top of** the REFInet Gopherspace platform — adding new routes, database tables, mesh protocols, CLI commands, blockchain integrations, or entirely new subsystems.
 
-It documents every public API, extension point, data model, and testing pattern in the codebase. Every function signature, constant value, and code example is verified against the running v0.2.0 implementation.
+It documents every public API, extension point, data model, and testing pattern in the codebase. Every function signature, constant value, and code example is verified against the running v0.3.0 implementation.
 
 ### Prerequisites
 
@@ -766,7 +766,7 @@ This is the exact pattern used by `/rpc/broadcast` (line 454 in `gopher_server.p
 {
   "type": "pillar_announce",
   "protocol": "REFInet",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "pid": "<64-char hex>",
   "public_key": "<64-char hex>",
   "hostname": "<IP or hostname>",
@@ -1228,7 +1228,7 @@ DISCOVERY_INTERVAL_SEC = 30
 
 # Protocol
 PROTOCOL_NAME    = "REFInet"
-PROTOCOL_VERSION = "0.2.0"
+PROTOCOL_VERSION = "0.3.0"
 
 # Tor Hidden Service
 TOR_DATA_DIR = HOME_DIR / "tor_data"
@@ -1270,7 +1270,7 @@ Default config:
   "port": 7070,
   "pillar_name": "My REFInet Pillar",
   "description": "A sovereign node in Gopherspace",
-  "protocol_version": "0.2.0",
+  "protocol_version": "0.3.0",
   "tor_enabled": false,
   "tor_expose_port_70": true,
   "tor_socks_port": 9050,
@@ -1679,7 +1679,7 @@ except (json.JSONDecodeError, OSError):
 | `MULTICAST_PORT` | `7071` | `core/config.py:38` | Peer discovery port |
 | `DISCOVERY_INTERVAL_SEC` | `30` | `core/config.py:39` | Announce interval |
 | `PROTOCOL_NAME` | `"REFInet"` | `core/config.py:44` | Protocol identifier |
-| `PROTOCOL_VERSION` | `"0.2.0"` | `core/config.py:45` | Protocol format version |
+| `PROTOCOL_VERSION` | `"0.3.0"` | `core/config.py:45` | Protocol format version |
 | `ACCOUNTING_DAYS_PER_MONTH` | `28` | `core/config.py:30` | Calendar constant |
 | `ACCOUNTING_MONTHS_PER_YEAR` | `13` | `core/config.py:31` | Calendar constant |
 | `LIVE_DB_RETENTION_MONTHS` | `13` | `core/config.py:32` | Archive threshold |
@@ -1834,4 +1834,4 @@ Tests use `monkeypatch.setattr("core.tor_manager.TOR_DATA_DIR", tmp_path / "tor_
 
 ---
 
-*REFInet v0.2.0 — Developer Guide*
+*REFInet v0.3.0 — Developer Guide*

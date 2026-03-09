@@ -101,7 +101,7 @@ class _MockGopherServer:
             "pid": "a" * 64,
             "public_key": "b" * 64,
             "key_store": "software",
-            "protocol": "0.2.0",
+            "protocol": "0.3.0",
         }
         self.private_key = private_key
 
@@ -140,7 +140,7 @@ class TestIdentityMessage:
         assert result["pid"] == "a" * 64
         assert result["public_key"] == "b" * 64
         assert result["key_store"] == "software"
-        assert result["protocol"] == "0.2.0"
+        assert result["protocol"] == "0.3.0"
 
     @pytest.mark.asyncio
     async def test_identity_via_handle_message(self):

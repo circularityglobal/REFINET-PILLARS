@@ -1,10 +1,11 @@
 # REFInet Pillar
 
+[![Tests](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/test.yml/badge.svg)](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/test.yml)
 ![Pillar Status](.github/badges/pillar-status.svg)
 
 > Sovereign Gopher mesh node. Your cryptographic identity. Your node. Your internet.
 
-**Protocol v0.3.0** | **479 tests passing** | **AGPLv3 License** | **Python 3.9+**
+**Protocol v0.3.0** | **484 tests passing** | **AGPLv3 License** | **Python 3.9+**
 
 ---
 
@@ -146,7 +147,7 @@ refinet-pillar/
 ├── proxy/                   # Privacy proxy (SSRF-protected)
 ├── integration/             # Cross-module integration
 ├── scripts/                 # Deployment & release scripts
-├── tests/                   # 479 tests across 33 modules
+├── tests/                   # 484 tests across 33 modules
 ├── browser-extension/       # Chrome extension v0.4.0
 ├── gopherroot/              # Served Gopher content
 ├── deploy/                  # systemd service + install script

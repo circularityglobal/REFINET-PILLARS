@@ -909,7 +909,7 @@ class GopherServer:
                 "pid": self.pid_data["pid"],
                 "public_key": self.pid_data["public_key"],
                 "key_store": self.pid_data.get("key_store", "software"),
-                "protocol": self.pid_data.get("protocol", "0.2.0"),
+                "protocol": self.pid_data.get("protocol", "0.3.0"),
             }
             binding = get_deployer_binding(self.pid_data["pid"])
             if binding:

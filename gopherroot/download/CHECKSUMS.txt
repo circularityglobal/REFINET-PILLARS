@@ -1,4 +1,4 @@
-REFInet Pillar v0.2.0 — SHA-256 Checksums
+REFInet Pillar v0.3.0 — SHA-256 Checksums
 ==========================================
 
 Verify your download:

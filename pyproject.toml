@@ -41,7 +41,7 @@ test = [
 ]
 
 [project.scripts]
-refinet-pillar = "pillar:main"
+refinet-pillar = "pillar:cli"
 
 [project.urls]
 Homepage = "https://refinet.io"

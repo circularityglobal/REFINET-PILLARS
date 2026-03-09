@@ -8,7 +8,7 @@ REFINET: A SOVEREIGN MESH PROTOCOL FOR DECENTRALIZED
 COMPUTING IN GOPHERSPACE
 ========================================================
 
-Version 0.2.0 | March 2026
+Version 0.3.0 | March 2026
 
 ========================================================
 
@@ -89,7 +89,7 @@ nodes.
 
 This whitepaper describes the architecture, capabilities,
 and security model of REFInet as implemented in the
-current codebase (v0.2.0). Every technical claim in this
+current codebase (v0.3.0). Every technical claim in this
 document corresponds to running, tested code.
 
 ========================================================
@@ -718,7 +718,7 @@ announcement via UDP multicast to 224.0.70.70:7071:
     {
       "type": "pillar_announce",
       "protocol": "REFInet",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "pid": "af1cc79d...",
       "public_key": "7a3b...",
       "hostname": "192.168.1.42",
@@ -1750,7 +1750,7 @@ Protocol Constants
   Tor SOCKS port (default)    9050         core/config.py
   Tor control port (default)  9051         core/config.py
   WAL checkpoint interval     6 hours      pillar.py
-  Protocol version            0.2.0        core/config.py
+  Protocol version            0.3.0        core/config.py
 
 Database Schema Summary
 -------------------------
@@ -1900,7 +1900,7 @@ Tor with a single config flag; the Pillar handles the
 rest. And when Tor is unavailable, the Pillar continues
 operating over direct TCP without error.
 
-REFInet is not a proposal. It is running software. 234
+REFInet is not a proposal. It is running software. 484
 tests pass. 23 routes serve content across a dual-port
 architecture -- standard Gopher on port 70 for backward
 compatibility, REFInet on port 7070 for full features.
@@ -1919,5 +1919,5 @@ Run a Pillar. Join Gopherspace.
 
 ========================================================
 
-REFInet v0.2.0 -- Built for sovereign, anonymous
+REFInet v0.3.0 -- Built for sovereign, anonymous
 computing.

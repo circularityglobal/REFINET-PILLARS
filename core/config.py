@@ -57,7 +57,7 @@ DISCOVERY_INTERVAL_SEC = 30
 # Protocol Version
 # ---------------------------------------------------------------------------
 PROTOCOL_NAME = "REFInet"
-PROTOCOL_VERSION = "0.2.0"
+PROTOCOL_VERSION = "0.3.0"
 
 # ---------------------------------------------------------------------------
 # Tor Hidden Service

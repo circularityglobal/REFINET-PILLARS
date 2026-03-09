@@ -2,7 +2,7 @@
 
 > A sovereign Gopher mesh node with blockchain integration. Turn any machine into a cryptographically identified, decentralized content node in Gopherspace.
 
-**Protocol:** REFInet v0.2.0
+**Protocol:** REFInet v0.3.0
 **Language:** Python 3.12 (fully async)
 **Current Phase:** Phase 1 complete, Phase 2 complete (incl. Tor hidden service integration)
 
@@ -262,7 +262,7 @@ Fully decentralized peer discovery — no DNS, no central registry.
   {
     "type": "pillar_announce",
     "protocol": "REFInet",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "pid": "<64-char hex>",
     "public_key": "<hex>",
     "hostname": "192.168.1.42",
@@ -772,7 +772,7 @@ lynx gopher://localhost:7070           # Using lynx
   "port": 7070,
   "pillar_name": "My REFInet Pillar",
   "description": "A sovereign node in Gopherspace",
-  "protocol_version": "0.2.0",
+  "protocol_version": "0.3.0",
   "tor_enabled": false,
   "tor_expose_port_70": true,
   "tor_socks_port": 9050,
@@ -793,7 +793,7 @@ lynx gopher://localhost:7070           # Using lynx
 | `MULTICAST_PORT` | `7071` | UDP multicast port |
 | `DISCOVERY_INTERVAL_SEC` | `30` | Peer announcement interval |
 | `PROTOCOL_NAME` | `REFInet` | Protocol identifier |
-| `PROTOCOL_VERSION` | `0.2.0` | Current protocol version |
+| `PROTOCOL_VERSION` | `0.3.0` | Current protocol version |
 | `TOR_DATA_DIR` | `~/.refinet/tor_data` | Tor hidden service data directory |
 | `TOR_DEFAULTS.tor_enabled` | `False` | Tor disabled by default |
 | `TOR_DEFAULTS.tor_expose_port_70` | `True` | Expose port 70 via Tor when enabled |
@@ -826,7 +826,7 @@ lynx gopher://localhost:7070           # Using lynx
 | `tests/test_rpc.py` | 5 | RPC gateway connectivity and chain support |
 | `tests/test_tor_integration.py` | 2 | Tor integration smoke tests (requires Tor binary — skipped in CI) |
 
-**Total: 236 tests across 16 modules (234 passed, 2 skipped)** | **Fixtures:** `tests/conftest.py` provides async test fixtures, temporary databases, and mock peer data.
+**Total: 484 tests across 33 modules (479 passed, 5 skipped)** | **Fixtures:** `tests/conftest.py` provides async test fixtures, temporary databases, and mock peer data.
 
 ---
 

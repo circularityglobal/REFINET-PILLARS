@@ -1,7 +1,7 @@
 REFInet Protocol Specification Summary
 ========================================
 
-Version: 0.2.0
+Version: 0.3.0
 Date: March 2026
 
 
@@ -72,7 +72,7 @@ Key material stored in ~/.refinet/pid.json:
       "hostname": "<bind address>",
       "port": 7070,
       "pillar_name": "<human-readable name>",
-      "protocol_version": "0.2.0"
+      "protocol_version": "0.3.0"
     }
 
 4.2 Bootstrap Peers (WAN)

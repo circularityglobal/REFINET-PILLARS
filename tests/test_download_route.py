@@ -37,14 +37,14 @@ async def download_server(tmp_path, monkeypatch):
     )
 
     # Text files
-    (download_dir / "INSTALL.txt").write_text("Install guide for REFInet Pillar v0.2.0")
-    (download_dir / "CHECKSUMS.txt").write_text("sha256  test-checksum  refinet-pillar-v0.2.0.tar.gz")
+    (download_dir / "INSTALL.txt").write_text("Install guide for REFInet Pillar v0.3.0")
+    (download_dir / "CHECKSUMS.txt").write_text("sha256  test-checksum  refinet-pillar-v0.3.0.tar.gz")
 
     # Create a small test tarball for binary serving
-    tarball_path = download_dir / "refinet-pillar-v0.2.0.tar.gz"
+    tarball_path = download_dir / "refinet-pillar-v0.3.0.tar.gz"
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
-        content = b"# REFInet Pillar test file\nversion = '0.2.0'\n"
+        content = b"# REFInet Pillar test file\nversion = '0.3.0'\n"
         info = tarfile.TarInfo(name="refinet-pillar/test.py")
         info.size = len(content)
         tar.addfile(info, io.BytesIO(content))
@@ -99,7 +99,7 @@ class TestDownloadRoute:
         _, port, _ = download_server
         resp = await _query_text(port, "/download/INSTALL.txt")
         assert "Install" in resp
-        assert "0.2.0" in resp
+        assert "0.3.0" in resp
 
     @pytest.mark.asyncio
     async def test_download_checksums(self, download_server):
@@ -123,9 +123,9 @@ class TestBinaryServing:
     async def test_binary_tarball_download(self, download_server):
         """Binary .tar.gz file is served correctly without corruption."""
         _, port, download_dir = download_server
-        original = (download_dir / "refinet-pillar-v0.2.0.tar.gz").read_bytes()
+        original = (download_dir / "refinet-pillar-v0.3.0.tar.gz").read_bytes()
 
-        downloaded = await _query_binary(port, "/download/refinet-pillar-v0.2.0.tar.gz")
+        downloaded = await _query_binary(port, "/download/refinet-pillar-v0.3.0.tar.gz")
 
         # Verify bytes match exactly
         assert downloaded == original
@@ -141,7 +141,7 @@ class TestBinaryServing:
     async def test_binary_no_signature_block(self, download_server):
         """Binary responses must NOT contain text signature blocks."""
         _, port, _ = download_server
-        downloaded = await _query_binary(port, "/download/refinet-pillar-v0.2.0.tar.gz")
+        downloaded = await _query_binary(port, "/download/refinet-pillar-v0.3.0.tar.gz")
 
         # The signature block should not be appended to binary files
         assert b"---BEGIN REFINET SIGNATURE---" not in downloaded

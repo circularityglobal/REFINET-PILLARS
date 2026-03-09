@@ -442,7 +442,7 @@ def _handle_recovery_command(args):
             "public_key": pub_bytes.hex(),
             "private_key": priv_hex,
             "created_at": int(time.time()),
-            "protocol": "REFInet-v0.2",
+            "protocol": "REFInet-v0.3",
             "key_store": "software",
         }
 
@@ -499,7 +499,8 @@ def _add_server_args(parser):
     parser.add_argument("--status", action="store_true", help="Show Pillar status and exit")
 
 
-if __name__ == "__main__":
+def cli():
+    """CLI entry point for both ``python pillar.py`` and ``refinet-pillar`` console script."""
     parser = argparse.ArgumentParser(
         description="REFInet Pillar — Sovereign Gopher Mesh Node",
         epilog="Run your own Pillar. Join Gopherspace.",
@@ -610,3 +611,7 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             print("\n  Pillar shutting down. See you in Gopherspace.\n")
             sys.exit(0)
+
+
+if __name__ == "__main__":
+    cli()

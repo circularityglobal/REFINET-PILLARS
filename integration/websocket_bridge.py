@@ -90,12 +90,12 @@ class WebSocketBridge:
             logger.info(f"[WS] WebSocket bridge listening on ws://{self.host}:{self.port}")
             await asyncio.Future()  # Run forever
 
-    async def _check_origin(self, path, request_headers):
+    async def _check_origin(self, connection, request):
         """Reject connections from disallowed origins."""
-        origin = request_headers.get("Origin")
+        origin = request.headers.get("Origin")
         if origin and not _match_origin(origin, self.allowed_origins):
             logger.warning(f"[WS] Rejected connection from origin: {origin}")
-            return (403, [("Content-Type", "text/plain")], b"Forbidden: origin not allowed")
+            return connection.respond(403, "Forbidden: origin not allowed\n")
         return None  # Allow the connection
 
     async def _handle_connection(self, websocket):
@@ -183,7 +183,7 @@ class WebSocketBridge:
                 resp["pid"] = pid_data["pid"]
                 resp["public_key"] = pid_data["public_key"]
                 resp["key_store"] = pid_data.get("key_store", "software")
-                resp["protocol"] = pid_data.get("protocol", "0.2.0")
+                resp["protocol"] = pid_data.get("protocol", "0.3.0")
             else:
                 resp["pid"] = None
             return resp
@@ -194,7 +194,7 @@ class WebSocketBridge:
             "pid": self.gopher_server.pid_data["pid"],
             "public_key": self.gopher_server.pid_data["public_key"],
             "key_store": self.gopher_server.pid_data.get("key_store", "software"),
-            "protocol": self.gopher_server.pid_data.get("protocol", "0.2.0"),
+            "protocol": self.gopher_server.pid_data.get("protocol", "0.3.0"),
         }
 
     def _handle_auth_challenge(self, request: dict) -> dict:

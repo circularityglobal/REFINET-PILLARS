@@ -1,6 +1,6 @@
 # REFInet: A Sovereign Mesh Protocol for Decentralized Computing in Gopherspace
 
-**Version 0.2.0 | March 2026**
+**Version 0.3.0 | March 2026**
 
 ---
 
@@ -43,7 +43,7 @@ When Tor mode is enabled, the Pillar generates a second identity — a `.onion` 
 
 REFInet proposes a return to the original architecture of the internet — where every computer is a server — augmented with the cryptographic primitives, anonymous transport, and economic incentives that the early internet lacked. The result is a lightweight, offline-first, LAN-capable computing platform that scales from a single Raspberry Pi to a global mesh of sovereign, anonymous nodes.
 
-This whitepaper describes the architecture, capabilities, and security model of REFInet as implemented in the current codebase (v0.2.0). Every technical claim in this document corresponds to running, tested code.
+This whitepaper describes the architecture, capabilities, and security model of REFInet as implemented in the current codebase (v0.3.0). Every technical claim in this document corresponds to running, tested code.
 
 ---
 
@@ -438,7 +438,7 @@ Pillars discover each other on local networks through zero-configuration UDP mul
 {
   "type": "pillar_announce",
   "protocol": "REFInet",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "pid": "af1cc79d...",
   "public_key": "7a3b...",
   "hostname": "192.168.1.42",
@@ -1139,7 +1139,7 @@ REFINET-GOPHERSPACE/
 | Tor SOCKS port (default) | 9050 | `core/config.py` |
 | Tor control port (default) | 9051 | `core/config.py` |
 | WAL checkpoint interval | 6 hours | `pillar.py` |
-| Protocol version | 0.2.0 | `core/config.py` |
+| Protocol version | 0.3.0 | `core/config.py` |
 
 ### Database Schema Summary
 
@@ -1233,7 +1233,7 @@ And by using UDP multicast for zero-configuration peer discovery, REFInet create
 
 By integrating Tor as an optional transport layer, a Pillar can now serve content globally via a `.onion` address — without revealing its IP, without port forwarding, without DNS — while all content remains signed by the same Ed25519 identity. The operator enables Tor with a single config flag; the Pillar handles the rest. And when Tor is unavailable, the Pillar continues operating over direct TCP without error.
 
-**REFInet is not a proposal. It is running software.** 234 tests pass. 23 routes serve content across a dual-port architecture — standard Gopher on port 70 for backward compatibility, REFInet on port 7070 for full features. Every response carries an Ed25519 signature block for zero-trust verification. Registries replicate across peers with cryptographic verification. Wallets authenticate via EIP-4361. Five EVM chains are reachable through the gateway. Tor hidden services provide anonymous, end-to-end encrypted access for operators and visitors.
+**REFInet is not a proposal. It is running software.** 484 tests pass. 23 routes serve content across a dual-port architecture — standard Gopher on port 70 for backward compatibility, REFInet on port 7070 for full features. Every response carries an Ed25519 signature block for zero-trust verification. Registries replicate across peers with cryptographic verification. Wallets authenticate via EIP-4361. Five EVM chains are reachable through the gateway. Tor hidden services provide anonymous, end-to-end encrypted access for operators and visitors.
 
 Run a Pillar. Join Gopherspace.
 
@@ -1244,4 +1244,4 @@ python3 pillar.py --status    # Check your Pillar's identity and status
 
 ---
 
-*REFInet v0.2.0 — Built for sovereign, anonymous computing.*
+*REFInet v0.3.0 — Built for sovereign, anonymous computing.*

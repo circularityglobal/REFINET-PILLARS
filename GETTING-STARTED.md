@@ -353,7 +353,7 @@ Requires `stem` package and the Tor binary:
   "port": 7070,
   "pillar_name": "My REFInet Pillar",
   "description": "A sovereign node in Gopherspace",
-  "protocol_version": "0.2.0",
+  "protocol_version": "0.3.0",
   "tor_enabled": false,
   "tor_expose_port_70": true,
   "tor_socks_port": 9050,

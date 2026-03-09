@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import re
 import socket
 import struct
 import logging
@@ -247,6 +248,18 @@ def load_bootstrap_peers(peers_file: Path) -> int:
             hostname = peer.get("hostname")
             pid = peer.get("pid")
             if not hostname or not pid:
+                continue
+            # Reject placeholder or invalid PIDs
+            if "REPLACE" in pid.upper():
+                logger.warning(
+                    "Bootstrap peer skipped: PID is a placeholder "
+                    "— edit peers.json with real values from your bootstrap node"
+                )
+                continue
+            if not re.fullmatch(r"[0-9a-fA-F]{64}", pid):
+                logger.warning(
+                    f"Bootstrap peer skipped: PID '{pid[:24]}...' is not a valid 64-character hex string"
+                )
                 continue
             pub_key = peer.get("public_key", "")
             if pub_key and not verify_peer_identity(pid, pub_key):

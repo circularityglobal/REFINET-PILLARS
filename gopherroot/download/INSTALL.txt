@@ -102,5 +102,5 @@ SUPPORT
   Gopherspace:   gopher://gopher.refinet.io:7070
 
 ---
-REFInet Pillar v0.2.0
+REFInet Pillar v0.3.0
 Your identity. Your node. Your internet.

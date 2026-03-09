@@ -29,7 +29,7 @@ The project public key is published in the repository at:
 
 To verify a git tag signature:
 
-    git tag -v v0.2.0
+    git tag -v v0.3.0
 
 
 GPG VERIFICATION (OPTIONAL)
@@ -47,8 +47,8 @@ The most secure installation method is building from source:
 
     git clone https://github.com/circularityglobal/REFINET-PILLARS.git
     cd REFINET-PILLARS
-    git verify-tag v0.2.0
-    git checkout v0.2.0
+    git verify-tag v0.3.0
+    git checkout v0.3.0
     pip3 install -e .
 
 This way you can audit every line of code before running it.

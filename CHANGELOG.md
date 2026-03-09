@@ -17,18 +17,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `.github/PULL_REQUEST_TEMPLATE.md` — PR checklist
 - `.github/FUNDING.yml` — GitHub Sponsors + crypto donations
 - `.github/CODEOWNERS` — maintainer assignment
-- 479 passing tests (up from 437)
+- GopherS (TLS) listener wired into `pillar.py` task group — encrypted Gopher on port 7073 with self-signed certificate
+- Bootstrap peer validation rejects placeholder PIDs with clear warnings
+- `cli()` entry point for `pip install refinet-pillar && refinet-pillar run`
+- 484 passing tests (up from 437)
 
 ### Changed
 - Dockerfile entrypoint changed to headless start script for bootstrap node
 - Dockerfile reduced to single exposed port (7070)
 - Version bumped to 0.3.0
+- `PROTOCOL_VERSION` in `core/config.py` updated from `0.2.0` to `0.3.0`
+- All documentation version references updated to 0.3.0
 
 ### Fixed
 - All repository URLs corrected: `github.com/refinet/pillar` to `github.com/circularityglobal/REFINET-PILLARS`
 - All subdomain references corrected: `pillar.refinet.io` to `gopher.refinet.io`
 - `deploy/peers.json.example` field names fixed (`host` to `hostname`, added `public_key`)
 - `website/install.sh` checksum skip message now shows visible warning
+- `pyproject.toml` entry point fixed: `pillar:main` → `pillar:cli` (async main required arguments)
 
 ## [0.2.0] — 2026-03-08
 
