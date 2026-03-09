@@ -163,6 +163,17 @@
     });
   }
 
+  // Auto-detect OS and pre-select the matching download tab
+  (function () {
+    var ua = navigator.userAgent || '';
+    var tab = 'dl-tab-windows'; // default
+    if (/Android/i.test(ua)) tab = 'dl-tab-mobile';
+    else if (/Macintosh|Mac OS X/i.test(ua)) tab = 'dl-tab-macos';
+    else if (/Linux/i.test(ua)) tab = 'dl-tab-linux';
+    else if (/Windows/i.test(ua)) tab = 'dl-tab-windows';
+    switchDlTab(tab);
+  })();
+
   // Copy buttons inside download modal
   if (dlModal) {
     dlModal.querySelectorAll('.copy-btn').forEach(function (btn) {
