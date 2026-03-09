@@ -27,6 +27,7 @@ jobs:
 
   build-windows-exe:
     needs: test
+    continue-on-error: true
     runs-on: windows-latest
 
     steps:
@@ -49,6 +50,7 @@ jobs:
 
   build-macos-dmg:
     needs: test
+    continue-on-error: true
     runs-on: macos-latest
 
     steps:
@@ -71,6 +73,7 @@ jobs:
 
   build-linux-deb:
     needs: test
+    continue-on-error: true
     runs-on: ubuntu-latest
 
     steps:
@@ -93,6 +96,7 @@ jobs:
 
   build-linux-appimage:
     needs: test
+    continue-on-error: true
     runs-on: ubuntu-latest
 
     steps:
@@ -115,6 +119,7 @@ jobs:
 
   build-android-apk:
     needs: test
+    continue-on-error: true
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -144,45 +149,18 @@ jobs:
 
   release:
     needs: [test, build-windows-exe, build-macos-dmg, build-linux-deb, build-linux-appimage, build-android-apk]
+    if: always() && needs.test.result == 'success'
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Download Windows .exe
+      - name: Download all available artifacts
         uses: actions/download-artifact@v4
         with:
-          name: windows-exe
           path: artifacts/
-
-      - name: Download macOS .dmg
-        uses: actions/download-artifact@v4
-        with:
-          name: macos-dmg
-          path: artifacts/
-
-      - name: Download Linux .deb
-        uses: actions/download-artifact@v4
-        with:
-          name: linux-deb
-          path: artifacts/
-
-      - name: Download Linux AppImage
-        uses: actions/download-artifact@v4
-        with:
-          name: linux-appimage
-          path: artifacts/
-
-      - name: Download Android APK
-        uses: actions/download-artifact@v4
-        with:
-          name: android-apk
-          path: artifacts/
+          merge-multiple: true
+        continue-on-error: true
 
       - name: Create release archive
         run: |
@@ -194,11 +172,11 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME}"
           sha256sum "refinet-pillar-${VERSION}.tar.gz" > CHECKSUMS.txt
-          sha256sum artifacts/refinet-pillar-setup.exe >> CHECKSUMS.txt
-          sha256sum artifacts/refinet-pillar.dmg >> CHECKSUMS.txt
-          sha256sum artifacts/refinet-pillar.deb >> CHECKSUMS.txt
-          sha256sum artifacts/refinet-pillar.AppImage >> CHECKSUMS.txt
-          sha256sum artifacts/refinet-pillar.apk >> CHECKSUMS.txt
+          for f in artifacts/refinet-pillar-setup.exe artifacts/refinet-pillar.dmg \
+                   artifacts/refinet-pillar.deb artifacts/refinet-pillar.AppImage \
+                   artifacts/refinet-pillar.apk; do
+            [ -f "$f" ] && sha256sum "$f" >> CHECKSUMS.txt
+          done
           cat CHECKSUMS.txt
 
       - name: Create GitHub Release
@@ -213,6 +191,7 @@ jobs:
             artifacts/refinet-pillar.apk
             CHECKSUMS.txt
           generate_release_notes: true
+          fail_on_unmatched_files: false
 
   publish-pypi:
     needs: test
