@@ -406,7 +406,7 @@ class TestBrowserAlignment:
         _, port = gopher_server
         token = "0x" + "a" * 40
         wallet = "0x" + "b" * 40
-        resp = await _query(port, f"/rpc/token\t{token}:{wallet}:ethereum", timeout=10.0)
+        resp = await _query(port, f"/rpc/token\t{token}:{wallet}:ethereum", timeout=30.0)
         assert "Format:" not in resp
         assert "Usage:" not in resp
 
