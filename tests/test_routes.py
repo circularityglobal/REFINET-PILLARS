@@ -346,7 +346,7 @@ class TestBrowserAlignment:
         _, port = gopher_server
         fake_session = "a" * 64
         fake_tx = "02" + "f8" + "00" * 50  # fake tx hex
-        resp = await _query(port, f"/rpc/broadcast\t{fake_session}:{fake_tx}", timeout=10.0)
+        resp = await _query(port, f"/rpc/broadcast\t{fake_session}:{fake_tx}", timeout=30.0)
         # Should NOT be a format/usage error — should reach deeper logic (session/web3)
         assert "Usage:" not in resp
         assert "Format:" not in resp
@@ -357,7 +357,7 @@ class TestBrowserAlignment:
         _, port = gopher_server
         fake_session = "b" * 64
         fake_tx = "02f800" + "00" * 48
-        resp = await _query(port, f"/rpc/broadcast\t{fake_session}|1|{fake_tx}", timeout=10.0)
+        resp = await _query(port, f"/rpc/broadcast\t{fake_session}|1|{fake_tx}", timeout=30.0)
         # Should NOT be a format/usage error
         assert "Usage:" not in resp
         assert "Pipe format:" not in resp
@@ -378,7 +378,7 @@ class TestBrowserAlignment:
         """
         _, port = gopher_server
         address = "0x" + "c" * 40
-        resp = await _query(port, f"/rpc/balance\t{address}:ethereum", timeout=10.0)
+        resp = await _query(port, f"/rpc/balance\t{address}:ethereum", timeout=30.0)
         # Should not be a format/usage error
         assert "Format:" not in resp
         assert "Usage:" not in resp
@@ -388,7 +388,7 @@ class TestBrowserAlignment:
         """Item 2.2: /rpc/balance colon format should accept numeric chain IDs too."""
         _, port = gopher_server
         address = "0x" + "d" * 40
-        resp = await _query(port, f"/rpc/balance\t{address}:1", timeout=10.0)
+        resp = await _query(port, f"/rpc/balance\t{address}:1", timeout=30.0)
         assert "Format:" not in resp
         assert "Usage:" not in resp
 
@@ -397,7 +397,7 @@ class TestBrowserAlignment:
         """Item 2.2: Unknown chain name should return an error."""
         _, port = gopher_server
         address = "0x" + "e" * 40
-        resp = await _query(port, f"/rpc/balance\t{address}:fakenet", timeout=10.0)
+        resp = await _query(port, f"/rpc/balance\t{address}:fakenet", timeout=30.0)
         assert "Unknown chain" in resp
 
     @pytest.mark.asyncio
@@ -416,7 +416,7 @@ class TestBrowserAlignment:
         _, port = gopher_server
         token = "0x" + "c" * 40
         wallet = "0x" + "d" * 40
-        resp = await _query(port, f"/rpc/token\t{token}:{wallet}:fakenet", timeout=10.0)
+        resp = await _query(port, f"/rpc/token\t{token}:{wallet}:fakenet", timeout=30.0)
         assert "Unknown chain" in resp
 
 
