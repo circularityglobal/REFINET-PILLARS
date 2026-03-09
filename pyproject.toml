@@ -7,7 +7,7 @@ name = "refinet-pillar"
 version = "0.2.0"
 description = "Sovereign Gopher mesh node with Ed25519 identity and encrypted mesh networking"
 readme = "README.md"
-license = {file = "LICENSE"}
+license = "AGPL-3.0-or-later"
 requires-python = ">=3.9"
 keywords = ["gopher", "decentralized", "sovereign", "mesh", "p2p", "blockchain", "ed25519"]
 classifiers = [
@@ -45,10 +45,10 @@ refinet-pillar = "pillar:main"
 
 [project.urls]
 Homepage = "https://refinet.network"
-Repository = "https://github.com/refinet/pillar"
+Repository = "https://github.com/circularityglobal/REFINET-PILLARS"
 Documentation = "https://docs.refinet.network"
 Gopherspace = "gopher://pillar.refinet.network:7070"
-Issues = "https://github.com/refinet/pillar/issues"
+Issues = "https://github.com/circularityglobal/REFINET-PILLARS/issues"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

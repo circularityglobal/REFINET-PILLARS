@@ -78,7 +78,7 @@ jobs:
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: twine upload dist/*
+        run: twine upload --verbose dist/*
 
   publish-docker:
     needs: test
@@ -106,7 +106,7 @@ jobs:
           context: .
           push: true
           tags: |
-            refinet/pillar:${{ steps.version.outputs.VERSION }}
-            refinet/pillar:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/refinet-pillar:${{ steps.version.outputs.VERSION }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/refinet-pillar:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
