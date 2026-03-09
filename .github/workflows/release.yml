@@ -38,6 +38,11 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
       - name: Build Windows .exe
         run: python build/build_exe.py
 
@@ -60,6 +65,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
 
       - name: Build macOS .dmg
         run: python build/build_dmg.py
@@ -84,6 +94,11 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
       - name: Build Linux .deb
         run: python build/build_deb.py
 
@@ -106,6 +121,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Install AppImage tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2
 
       - name: Build Linux AppImage
         run: python build/build_appimage.py
@@ -136,6 +161,17 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf libtool pkg-config zlib1g-dev \
+            libncurses5-dev cmake libffi-dev libssl-dev automake
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install buildozer cython
 
       - name: Build Android APK
         run: python build/build_apk.py
@@ -218,6 +254,7 @@ jobs:
 
   publish-docker:
     needs: test
+    continue-on-error: true
     runs-on: ubuntu-latest
 
     steps:
