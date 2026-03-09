@@ -340,6 +340,109 @@ header h1 {
   text-align: center;
 }
 
+/* --- Tab Bar --- */
+
+.tab-bar {
+  display: flex;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  background: transparent;
+  color: #8b949e;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab-btn:hover {
+  color: #c9d1d9;
+}
+
+.tab-btn.active {
+  color: #58a6ff;
+  border-bottom-color: #58a6ff;
+}
+
+.tab-panel {
+  /* no extra styles needed; hidden class handles visibility */
+}
+
+/* --- Services Tab --- */
+
+#tab-services {
+  padding: 8px 12px;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+.service-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid #21262d;
+}
+
+.service-row:last-child {
+  border-bottom: none;
+}
+
+.service-icon {
+  width: 16px;
+  text-align: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.service-icon.ok {
+  color: #3fb950;
+}
+
+.service-icon.missing {
+  color: #f85149;
+}
+
+.service-name {
+  font-size: 12px;
+  color: #c9d1d9;
+  min-width: 120px;
+}
+
+.service-version {
+  font-size: 10px;
+  color: #8b949e;
+}
+
+.service-cmd {
+  font-size: 10px;
+  color: #d29922;
+  margin-left: auto;
+}
+
+.install-label {
+  font-size: 11px;
+  padding: 8px 0 4px;
+}
+
+.install-code {
+  display: block;
+  padding: 6px 8px;
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  background: #0d1117;
+  color: #79c0ff;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  word-break: break-all;
+}
+
 /* --- Breadcrumb --- */
 
 #breadcrumb {

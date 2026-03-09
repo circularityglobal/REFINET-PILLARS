@@ -1,0 +1,193 @@
+REFInet — Frequently Asked Questions
+======================================
+
+
+Q1: What is the Gopher protocol?
+---------------------------------
+
+Gopher is a TCP-based protocol from 1991 (RFC 1436) designed for
+distributing and retrieving documents over the internet. It serves
+hierarchical text menus and files. Unlike HTTP, Gopher has no
+JavaScript, cookies, tracking, or client-side execution. A client
+sends a selector string, and the server responds with content.
+That's it.
+
+
+Q2: Why Gopher instead of HTTP?
+---------------------------------
+
+HTTP has become a platform for surveillance capitalism. A modern web
+page loads megabytes of JavaScript, sets dozens of cookies, contacts
+dozens of trackers, and requires a complex browser to render.
+
+Gopher is the opposite: pure content delivery. A Gopher server is
+trivial to implement, audit, and secure. REFInet adds modern
+cryptography (Ed25519 signing, SIWE authentication) to Gopher while
+preserving this simplicity. The result is a protocol stack that any
+developer can understand end-to-end in an afternoon.
+
+
+Q3: What is a PID (Pillar ID)?
+---------------------------------
+
+A PID is your cryptographic identity in the REFInet mesh. It is the
+SHA-256 hash of your Ed25519 public key, generated on first run and
+stored in ~/.refinet/pid.json.
+
+Your PID is:
+  - Unique: derived from your key pair, collision-resistant
+  - Self-sovereign: no registration, no authority, no DNS
+  - Verifiable: anyone can check your content signatures
+  - Portable: back it up with Shamir secret sharing
+
+
+Q4: How does mesh peer discovery work?
+---------------------------------------
+
+Pillars discover each other through three mechanisms:
+
+  1. UDP multicast (LAN): Your Pillar sends announcements to
+     224.0.70.70:7071 every 30 seconds. Other Pillars on the same
+     network segment hear these and add you as a peer.
+
+  2. Bootstrap peers (WAN): You can add known peers manually via
+     ~/.refinet/peers.json or the CLI. Your Pillar connects to
+     these peers and exchanges peer lists.
+
+  3. Peer exchange: When your Pillar syncs with a peer, they share
+     their known peer lists. This allows the mesh to grow
+     organically without any central directory.
+
+
+Q5: Do I need a static IP address?
+------------------------------------
+
+No. For LAN discovery, your Pillar uses UDP multicast which works
+with any IP address. For WAN connectivity, you need your peers to
+be able to reach you — but they can also reach you if you're behind
+NAT, as long as you initiate the connection first.
+
+For fully reachable operation behind NAT, you can:
+  - Use a Tor hidden service (built-in, no port forwarding needed)
+  - Forward port 7070 on your router
+  - Use a VPS with a public IP
+
+
+Q6: Does REFInet support Tor?
+-------------------------------
+
+Yes. The Pillar has built-in Tor integration. Enable it in your
+config (~/.refinet/config.json):
+
+    "tor_enabled": true
+
+The Pillar will create a .onion hidden service automatically. Other
+Pillars with Tor enabled can reach you through the Tor network
+without knowing your real IP address. Peer replication falls back to
+.onion addresses when direct TCP fails.
+
+Requires: pip install stem (and Tor running on your system)
+
+
+Q7: How are gopherholes replicated across the mesh?
+-----------------------------------------------------
+
+When you create a gopherhole, it is signed with your Ed25519 private
+key and registered in your local SQLite database. Every 5 minutes,
+your Pillar connects to known peers and fetches their gopherhole
+registries via /directory.json.
+
+New entries are imported only if:
+  - The Ed25519 signature is valid
+  - The entry doesn't already exist locally
+
+This gives you eventual consistency: a gopherhole registered on any
+Pillar propagates to every connected Pillar in the mesh, with
+cryptographic proof of authorship.
+
+
+Q8: What are DApps in REFInet?
+-------------------------------
+
+DApps (Decentralized Applications) are JSON definition files that
+describe on-chain interactions. A .dapp file specifies a contract
+address, ABI, chain ID, and available functions. The Pillar's EVM
+RPC gateway executes these interactions on behalf of users.
+
+Example: a Uniswap swap DApp fetches token prices and submits
+transactions through the Pillar's RPC endpoint.
+
+DApps are stored in gopherroot/dapps/ and listed under the /dapps
+menu.
+
+
+Q9: What is the security model?
+---------------------------------
+
+REFInet's security is based on:
+
+  - Ed25519 signatures: All content is signed by the serving Pillar.
+    Clients verify signatures using the Pillar's public key.
+
+  - No trust delegation: There are no CAs, no DNS, no OAuth
+    providers. Identity is your key pair.
+
+  - Local-first data: Your ledger, keys, and content stay on your
+    machine. Nothing is uploaded to any cloud.
+
+  - Rate limiting: 100 requests per 60 seconds per IP address.
+
+  - SSRF protection: The Gopher proxy blocks requests to private
+    and loopback addresses.
+
+  - SIWE authentication: Wallet-based auth with domain separation
+    and nonce validation.
+
+  - Optional encryption: Private keys can be encrypted with
+    AES-256-GCM (Argon2id KDF).
+
+
+Q10: How do I contribute to REFInet?
+--------------------------------------
+
+  - Run a Pillar: The most important contribution is running a node.
+    More Pillars = stronger mesh.
+
+  - Report bugs: https://github.com/circularityglobal/REFINET-PILLARS/issues
+
+  - Write DApps: Create .dapp definition files for on-chain
+    interactions.
+
+  - Build tools: Write Gopher clients, browser extensions, or
+    integrations.
+
+  - Improve docs: Submit PRs for documentation, examples, and
+    tutorials.
+
+  - Spread the word: Tell developers about REFInet and Gopherspace.
+
+See /holes/refinet/community/contributing.txt for details.
+
+
+Q11: What happens if I lose my private key?
+---------------------------------------------
+
+If you created recovery shares (pillar.py recovery split), you can
+reconstruct your key from any k-of-n shares. Otherwise, your PID is
+lost and you must generate a new one.
+
+Always back up your key:
+    python3 pillar.py recovery split --threshold 3 --shares 5
+
+
+Q12: Can I run multiple Pillars?
+---------------------------------
+
+Yes. Use profiles to manage multiple identities:
+
+    python3 pillar.py profile create --name work
+    python3 pillar.py profile create --name personal
+    python3 pillar.py profile switch --name work
+
+Each profile has its own PID, keys, and data directory. Run them on
+different ports to operate simultaneously.

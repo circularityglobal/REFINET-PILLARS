@@ -1,0 +1,9 @@
+iREFInet Browser Extension	fake	(NULL)	0
+i	fake	(NULL)	0
+iBrowse Gopherspace from any web browser.	fake	(NULL)	0
+iConnects to your local Pillar via WebSocket.	fake	(NULL)	0
+i	fake	(NULL)	0
+0  README	/holes/refinet/products/browser-extension/README.txt	PILLAR_HOST	PILLAR_PORT
+1  Download	/holes/refinet/products/browser-extension/download	PILLAR_HOST	PILLAR_PORT
+i	fake	(NULL)	0
+1  ← Back to Products	/holes/refinet/products	PILLAR_HOST	PILLAR_PORT

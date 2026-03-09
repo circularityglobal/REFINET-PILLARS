@@ -1,0 +1,11 @@
+iREFInet Pillar	fake	(NULL)	0
+i	fake	(NULL)	0
+iA sovereign Gopher mesh node. Run one and join the network.	fake	(NULL)	0
+iNo accounts. No cloud. Your computer, your rules.	fake	(NULL)	0
+i	fake	(NULL)	0
+1  Download	/holes/refinet/products/pillar/download	PILLAR_HOST	PILLAR_PORT
+0  README	/holes/refinet/products/pillar/README.txt	PILLAR_HOST	PILLAR_PORT
+0  Installation Guide	/holes/refinet/products/pillar/INSTALL.txt	PILLAR_HOST	PILLAR_PORT
+0  Changelog	/holes/refinet/products/pillar/CHANGELOG.txt	PILLAR_HOST	PILLAR_PORT
+i	fake	(NULL)	0
+hSource Code on GitHub	URL:https://github.com/circularityglobal/REFINET-PILLARS	PILLAR_HOST	PILLAR_PORT

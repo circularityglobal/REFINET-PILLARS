@@ -478,6 +478,54 @@ def checkpoint_live_db():
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
 
+def ensure_refinet_gopherhole(pid_data: dict) -> None:
+    """Register the built-in REFInet gopherhole if not already present.
+
+    Idempotent — safe to call on every startup.  Checks by PID + selector
+    so each Pillar carries exactly one ``/holes/refinet`` registration.
+    """
+    pid = pid_data["pid"]
+    selector = "/holes/refinet"
+
+    if gopherhole_exists(pid, selector):
+        return
+
+    pubkey_hex = pid_data["public_key"]
+    name = "REFInet"
+    description = (
+        "REFInet products, documentation, and community "
+        "\u2014 the reference gopherhole"
+    )
+
+    day, month, year = get_accounting_date()
+    registered_at = f"{year}-{month:02d}-{day:02d}"
+
+    try:
+        from crypto.pid import get_private_key
+        from crypto.signing import sign_content
+
+        private_key = get_private_key(pid_data)
+        signing_payload = f"{pid}:{selector}:{name}:{registered_at}"
+        signature = sign_content(signing_payload.encode(), private_key)
+    except (ValueError, ImportError, Exception):
+        return  # Cannot sign — skip silently
+
+    try:
+        register_gopherhole(
+            pid=pid,
+            selector=selector,
+            name=name,
+            description=description,
+            owner_address="",
+            pubkey_hex=pubkey_hex,
+            signature=signature,
+            source="local",
+            registered_at=registered_at,
+        )
+    except Exception:
+        pass  # UNIQUE constraint = already exists, harmless
+
+
 def gopherhole_exists(pid: str, selector: str) -> bool:
     """Check existence without fetching full record."""
     with _connect() as conn:

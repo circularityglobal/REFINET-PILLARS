@@ -1,0 +1,12 @@
+iREFInet — A Sovereign Mesh Internet	fake	(NULL)	0
+i	fake	(NULL)	0
+iBuilt on Gopher. No DNS. No CAs. No browsers required.	fake	(NULL)	0
+i	fake	(NULL)	0
+1  Products	/holes/refinet/products	PILLAR_HOST	PILLAR_PORT
+1  Documentation	/holes/refinet/docs	PILLAR_HOST	PILLAR_PORT
+1  Community	/holes/refinet/community	PILLAR_HOST	PILLAR_PORT
+i	fake	(NULL)	0
+0  About REFInet	/holes/refinet/about.txt	PILLAR_HOST	PILLAR_PORT
+i	fake	(NULL)	0
+iThis gopherhole is replicated across the REFInet mesh.	fake	(NULL)	0
+iEvery Pillar that connects will carry a copy of this content.	fake	(NULL)	0

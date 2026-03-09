@@ -130,6 +130,7 @@ def build_root_menu(pid_data: dict, hostname: str, port: int,
     lines.append(menu_link("  Identity Management", "/identity", hostname, port))
     lines.append(menu_link("  Encrypted Vault", "/vault", hostname, port))
     lines.append(menu_link("  Settings", "/settings", hostname, port))
+    lines.append(menu_link("  Service Health", "/health", hostname, port))
 
     lines.append(info_line(""))
     lines.append(separator())

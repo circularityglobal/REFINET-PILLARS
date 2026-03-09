@@ -1,27 +1,24 @@
 """
 TOR-25: Integration test for Tor hidden service round-trip.
 
-Requires the 'tor' binary to be installed.
-Tests are skipped automatically if tor is not available.
+Requires the 'tor' binary to be installed AND the --integration flag.
+Tests are skipped automatically if either condition is not met.
 """
 
 import shutil
 import pytest
-
-# Skip entire module if tor binary is not available
-pytestmark = pytest.mark.skipif(
-    not shutil.which("tor"),
-    reason="Tor binary not found — install with: brew install tor (macOS) or apt install tor (Linux)",
-)
 
 
 class TestTorIntegration:
     """End-to-end test: start Pillar with Tor, connect via .onion, verify."""
 
     @pytest.mark.asyncio
-
-    async def test_hidden_service_creation(self, tmp_path, monkeypatch):
+    async def test_hidden_service_creation(self, tmp_path, monkeypatch, request):
         """Start TorManager and verify .onion address is generated."""
+        if not request.config.getoption("--integration", default=False):
+            pytest.skip("Tor integration tests require --integration flag")
+        if not shutil.which("tor"):
+            pytest.skip("Tor binary not found")
         monkeypatch.setattr("core.tor_manager.TOR_DATA_DIR", tmp_path / "tor_data")
         from core.tor_manager import TorManager
 
@@ -48,9 +45,12 @@ class TestTorIntegration:
             await tor.stop()
 
     @pytest.mark.asyncio
-
-    async def test_onion_address_persistence(self, tmp_path, monkeypatch):
+    async def test_onion_address_persistence(self, tmp_path, monkeypatch, request):
         """Verify .onion address is consistent across two TorManager lifecycles."""
+        if not request.config.getoption("--integration", default=False):
+            pytest.skip("Tor integration tests require --integration flag")
+        if not shutil.which("tor"):
+            pytest.skip("Tor binary not found")
         tor_data = tmp_path / "tor_data"
         monkeypatch.setattr("core.tor_manager.TOR_DATA_DIR", tor_data)
         from core.tor_manager import TorManager

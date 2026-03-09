@@ -1,0 +1,90 @@
+Contributing to REFInet
+========================
+
+REFInet is open source under AGPLv3. Contributions of all kinds are
+welcome: code, documentation, bug reports, DApp definitions, and
+community building.
+
+
+RUNNING A PILLAR
+----------------
+
+The single most valuable contribution is running a Pillar node.
+Every active Pillar strengthens the mesh, improves content
+availability, and demonstrates that sovereign infrastructure works.
+
+    pip3 install refinet-pillar[full]
+    python3 pillar.py
+
+
+REPORTING BUGS
+--------------
+
+File issues at:
+    https://github.com/circularityglobal/REFINET-PILLARS/issues
+
+Please include:
+  - Python version (python3 --version)
+  - Operating system
+  - Steps to reproduce
+  - Expected vs actual behavior
+  - Relevant log output (run with -v for verbose)
+
+
+SUBMITTING CODE
+---------------
+
+1. Fork the repository
+2. Create a feature branch: git checkout -b my-feature
+3. Write tests for your changes (pytest, asyncio_mode=auto)
+4. Run the test suite: python3 -m pytest tests/ -v
+5. Submit a pull request
+
+Code style:
+  - Python 3.9+ compatible
+  - Type hints encouraged
+  - Keep functions focused and small
+  - Follow existing patterns in the codebase
+
+
+WRITING DAPPS
+-------------
+
+DApp definitions live in gopherroot/dapps/ as .dapp JSON files.
+A DApp describes an on-chain interaction:
+
+    {
+      "name": "My DApp",
+      "chain_id": 1,
+      "contract": "0x...",
+      "abi": [...],
+      "functions": [...]
+    }
+
+See gopherroot/dapps/uniswap-v3.dapp for a working example.
+
+
+IMPROVING DOCUMENTATION
+-----------------------
+
+Documentation lives in:
+  - docs/ (MkDocs source, Markdown)
+  - gopherroot/holes/refinet/docs/ (Gopher-served plain text)
+
+Keep Gopher docs under 72 columns where practical. Plain text only —
+no markdown formatting in .txt files.
+
+
+SECURITY REPORTS
+----------------
+
+For security vulnerabilities, see SECURITY.md in the repository root.
+Do not file public issues for security bugs.
+
+
+CODE OF CONDUCT
+---------------
+
+Be constructive. Be respectful. Focus on the work. REFInet is a
+technical project — keep discussions technical. If you disagree,
+propose an alternative with code or data.

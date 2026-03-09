@@ -7,6 +7,20 @@ from crypto.pid import generate_pid, get_private_key
 from db.schema import LIVE_SCHEMA
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--integration",
+        action="store_true",
+        default=False,
+        help="Run integration tests that require live external services (Tor, etc.)"
+    )
+
+
+@pytest.fixture
+def integration(request):
+    return request.config.getoption("--integration")
+
+
 @pytest.fixture(autouse=True)
 def _patch_db_paths(tmp_path, monkeypatch):
     """Ensure DB module-level paths point to tmp_path so CI works without ~/.refinet."""

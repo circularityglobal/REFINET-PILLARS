@@ -1,0 +1,50 @@
+REFInet — A Sovereign Mesh Internet
+====================================
+
+REFInet is a decentralized mesh network built on the Gopher protocol
+(RFC 1436). It replaces the DNS/CA/HTTP stack with a sovereign
+alternative where every participant runs their own node — called a
+Pillar — and connects directly to other Pillars.
+
+No accounts. No cloud. No corporations between you and your data.
+
+How It Works
+------------
+
+Each Pillar is a Gopher server enhanced with:
+
+  - Ed25519 cryptographic identity (Pillar ID / PID)
+  - Content signing and verification
+  - Peer discovery via UDP multicast and bootstrap lists
+  - Gopherhole registry replication across the mesh
+  - A 13-month accounting ledger (SQLite, local-first)
+  - EVM wallet authentication (SIWE / EIP-4361)
+  - Optional Tor hidden service transport
+  - DApp runtime for on-chain interactions
+
+When you run a Pillar, you join Gopherspace. Your Pillar discovers
+peers, replicates content registries, and serves your gopherholes to
+anyone who connects — whether they use a Gopher client, the REFInet
+browser extension, or curl.
+
+Why Gopher?
+-----------
+
+Gopher is a 1991 protocol that does one thing well: serve structured
+text menus over TCP. It has no JavaScript, no cookies, no tracking,
+no ads. A Gopher server is ~200 lines of code. An HTTP server that
+does the same job is thousands.
+
+REFInet extends Gopher with modern cryptography and mesh networking
+while preserving its simplicity. The result is an internet protocol
+that anyone can implement, audit, and trust.
+
+Learn More
+----------
+
+  - Run a Pillar:  pip install refinet-pillar && python3 -m pillar
+  - Whitepaper:    /holes/refinet/docs/whitepaper.txt
+  - FAQ:           /holes/refinet/docs/faq.txt
+  - Source code:   https://github.com/circularityglobal/REFINET-PILLARS
+
+License: AGPLv3

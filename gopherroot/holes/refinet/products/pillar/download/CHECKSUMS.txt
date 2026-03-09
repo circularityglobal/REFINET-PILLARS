@@ -1,0 +1,6 @@
+REFInet Pillar — SHA-256 Checksums
+====================================
+
+Verify downloads with: sha256sum -c CHECKSUMS.txt
+
+f6bc902e8ccaae4c3ea2d6a78af9b6a890372eaa1300bbf8ef6bec4594640878  pillar-latest.tar.gz

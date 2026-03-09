@@ -78,6 +78,19 @@ from db.archive_db import init_archive_db
 logger = logging.getLogger("refinet.gopher")
 
 
+def render_gophermap(content: str, hostname: str, port: int) -> str:
+    """Replace PILLAR_HOST and PILLAR_PORT tokens in static gophermap files.
+
+    Static gophermaps use ``PILLAR_HOST`` and ``PILLAR_PORT`` as
+    placeholders so the same files work regardless of which Pillar
+    serves them.  This function substitutes the actual serving hostname
+    and port at serve time.
+    """
+    content = content.replace("PILLAR_HOST", hostname)
+    content = content.replace("PILLAR_PORT", str(port))
+    return content
+
+
 class RateLimiter:
     """Simple in-memory per-IP sliding window rate limiter."""
 
@@ -143,7 +156,8 @@ REFINET_ROUTES = (
     "/auth", "/rpc", "/pid", "/transactions", "/peers",
     "/ledger", "/network", "/directory.json", "/status.json", "/search",
     "/pillar/status", "/identity", "/identity.json", "/identity/verify",
-    "/vault", "/settings", "/sync", "/health",
+    "/vault", "/settings", "/sync", "/health", "/health/services",
+    "/onboarding/readiness",
 )
 
 
@@ -967,7 +981,43 @@ class GopherServer:
             return build_sync_menu(peers, chain_length, h, p)
 
         elif selector == "/health":
-            return self._build_health_response(h, p)
+            from core.readiness import check_all, OPTIONAL_KEYS
+            config = load_config()
+            statuses = check_all(config)
+            lines = [info_line("  REFInet Pillar — Service Health"), separator()]
+            for s in statuses:
+                icon = "✓" if s.available else ("○" if s.key in OPTIONAL_KEYS else "✗")
+                version_str = f" v{s.version}" if s.version else ""
+                lines.append(info_line(f"  {icon} {s.name:<20}{version_str}"))
+                if not s.available and s.install_cmd:
+                    lines.append(info_line(f"      → {s.install_cmd}"))
+            lines.append(separator())
+            lines.append(menu_link("  ← Back", "/", h, p))
+            return "\r\n".join(lines) + "\r\n."
+
+        elif selector == "/health/services":
+            # Machine-readable JSON for browser extension
+            from core.readiness import check_all
+            import dataclasses
+            config = load_config()
+            statuses = check_all(config)
+            import json as _json
+            return _json.dumps([dataclasses.asdict(s) for s in statuses], indent=2) + "\r\n."
+
+        elif selector == "/onboarding/readiness":
+            from onboarding.readiness_step import build_readiness_menu
+            config = load_config()
+            return build_readiness_menu(h, p, config)
+
+        elif selector.startswith("/onboarding/readiness/install"):
+            # Return the pip install command as plain text
+            from core.readiness import check_all, get_install_commands
+            config = load_config()
+            statuses = check_all(config)
+            cmds = get_install_commands(statuses)
+            if cmds:
+                return "\r\n".join(cmds) + "\r\n."
+            return "i All packages already installed\r\n."
 
         elif selector.startswith("/auth/zkp-challenge"):
             try:
@@ -1018,6 +1068,16 @@ class GopherServer:
                 return self._error_response(f"ZKP error: {e}")
             except ImportError:
                 return self._error_response("ZKP or auth module not available")
+
+        # --- Gopherhole directory routing ---
+        # Try to serve <selector>/gophermap if <selector> is a directory
+        elif selector.startswith("/holes/"):
+            path = GOPHER_ROOT / selector.lstrip("/")
+            if path.is_dir():
+                gophermap = path / "gophermap"
+                if gophermap.exists():
+                    return self._serve_static(selector + "/gophermap")
+            return self._serve_static(selector)
 
         # --- Static file serving from gopherroot ---
         else:
@@ -1078,7 +1138,11 @@ class GopherServer:
 
         if target.is_file():
             try:
-                return target.read_text(encoding="utf-8", errors="replace")
+                raw = target.read_text(encoding="utf-8", errors="replace")
+                # Apply HOST/PORT token replacement for gophermap files
+                if target.name == "gophermap":
+                    raw = render_gophermap(raw, self.hostname, self.port)
+                return raw
             except Exception as e:
                 logger.error(f"Failed to read {selector}: {e}")
                 return self._error_response(f"Cannot read: {selector}")
@@ -1086,7 +1150,8 @@ class GopherServer:
         if target.is_dir():
             gophermap = target / "gophermap"
             if gophermap.exists():
-                return gophermap.read_text(encoding="utf-8", errors="replace")
+                raw = gophermap.read_text(encoding="utf-8", errors="replace")
+                return render_gophermap(raw, self.hostname, self.port)
             # Auto-generate directory listing
             return self._auto_directory(target, selector)
 

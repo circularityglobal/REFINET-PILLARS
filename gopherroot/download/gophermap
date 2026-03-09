@@ -9,9 +9,9 @@ i──────────────────────────�
 i  DOWNLOAD FILES	fake	(NULL)	0
 i────────────────────────────────────────────────────	fake	(NULL)	0
 i	fake	(NULL)	0
-0  Install Instructions	/download/INSTALL.txt	localhost	7070
-0  SHA-256 Checksums	/download/CHECKSUMS.txt	localhost	7070
-0  Requirements	/download/requirements.txt	localhost	7070
+0  Install Instructions	/download/INSTALL.txt	PILLAR_HOST	PILLAR_PORT
+0  SHA-256 Checksums	/download/CHECKSUMS.txt	PILLAR_HOST	PILLAR_PORT
+0  Requirements	/download/requirements.txt	PILLAR_HOST	PILLAR_PORT
 i	fake	(NULL)	0
 i────────────────────────────────────────────────────	fake	(NULL)	0
 i  QUICK INSTALL — paste into terminal	fake	(NULL)	0
@@ -42,5 +42,5 @@ i	fake	(NULL)	0
 i  sha256sum refinet-pillar-0.2.0.tar.gz	fake	(NULL)	0
 i  (compare with CHECKSUMS.txt above)	fake	(NULL)	0
 i	fake	(NULL)	0
-1  Back to Root Menu	/	localhost	7070
+1  Back to Root Menu	/	PILLAR_HOST	PILLAR_PORT
 .

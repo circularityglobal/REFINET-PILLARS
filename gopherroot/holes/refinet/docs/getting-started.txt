@@ -1,0 +1,115 @@
+REFInet Pillar — Getting Started
+==================================
+
+This guide walks you through installing the Pillar, connecting the
+browser extension, creating your first gopherhole, and adding a peer.
+Total time: about 10 minutes.
+
+
+1. INSTALL THE PILLAR
+---------------------
+
+    pip3 install refinet-pillar[full]
+
+Or from source:
+
+    git clone https://github.com/circularityglobal/REFINET-PILLARS.git
+    cd REFINET-PILLARS
+    pip3 install -e ".[full]"
+
+
+2. START THE PILLAR
+-------------------
+
+    python3 pillar.py
+
+First run creates your identity and starts the onboarding wizard.
+Follow the prompts to connect your EVM wallet.
+
+Once complete, your Pillar runs on:
+  - Port 7070: REFInet server (full features)
+  - Port 70:   Standard Gopher (public content)
+  - Port 7075: WebSocket bridge (browser extension)
+
+
+3. VERIFY IT WORKS
+------------------
+
+    curl gopher://localhost:7070/
+
+You should see the root Gopher menu with your Pillar ID and status.
+
+    curl gopher://localhost:7070/1/about
+
+This shows detailed information about your Pillar.
+
+
+4. CONNECT THE BROWSER EXTENSION
+---------------------------------
+
+  a) Install the REFInet extension from the Chrome Web Store or
+     Firefox Add-ons.
+
+  b) The extension auto-connects to ws://localhost:7075. You should
+     see a green "Connected" indicator in the popup.
+
+  c) Click "Authenticate" and select your EVM wallet. The extension
+     uses SIWE (Sign-In with Ethereum) to link your wallet address
+     to your Pillar's PID.
+
+  d) Once authenticated, you can browse Gopherspace from the
+     extension's "REFInet Network" tab.
+
+
+5. CREATE YOUR FIRST GOPHERHOLE
+---------------------------------
+
+A gopherhole is your personal space in Gopherspace — like a website,
+but simpler.
+
+    python3 pillar.py hole create \
+        --name "My First Gopherhole" \
+        --selector /holes/mysite
+
+This creates a directory at gopherroot/holes/mysite/ with a default
+gophermap. Edit the gophermap to add your content:
+
+    gopherroot/holes/mysite/gophermap
+
+Add text files, subdirectories, and links. The Pillar serves them
+automatically.
+
+
+6. ADD A PEER
+-------------
+
+To connect to the wider REFInet mesh beyond your local network:
+
+    python3 pillar.py peer add --host gopher.refinet.app --port 7070
+
+Verify the connection:
+
+    python3 pillar.py peer list
+
+Your Pillar will now exchange gopherhole registries with this peer
+and any peers it knows about.
+
+
+7. WHAT HAPPENS NEXT
+---------------------
+
+  - Your Pillar announces itself on the local network every 30 seconds
+  - Other Pillars on your LAN discover you automatically
+  - Every 5 minutes, your Pillar syncs registries with known peers
+  - Content you register propagates across the mesh
+  - All activity is recorded in your local SQLite ledger
+  - You are now a sovereign node in Gopherspace
+
+
+NEXT STEPS
+----------
+
+  - Read the FAQ:        /holes/refinet/docs/faq.txt
+  - Read the Whitepaper: /holes/refinet/docs/whitepaper.txt
+  - Browse products:     /holes/refinet/products
+  - Join the community:  /holes/refinet/community

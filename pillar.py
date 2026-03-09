@@ -58,29 +58,27 @@ def setup_logging(verbose: bool = False):
     )
 
 
-def check_dependencies():
-    """Log status of optional dependencies at startup."""
-    dep_logger = logging.getLogger("refinet.deps")
-    deps = [
-        ("websockets", "WebSocket bridge"),
-        ("web3", "EVM RPC gateway"),
-        ("eth_account", "SIWE authentication"),
-        ("stem", "Tor hidden services"),
-        ("pkcs11", "HSM hardware keys"),
-        ("qrcode", "QR code generation"),
-    ]
-    for module_name, feature in deps:
-        try:
-            __import__(module_name)
-            dep_logger.debug(f"  {feature}: available")
-        except ImportError:
-            dep_logger.info(f"  {feature}: not installed (disabled)")
+def check_dependencies(config: dict = None) -> list:
+    """Check all optional dependencies and log results."""
+    from core.readiness import check_all, format_status_table
+    if config is None:
+        config = {}
+    statuses = check_all(config)
+    # Log summary — not verbose by default
+    missing = [s for s in statuses if not s.available and s.install_cmd]
+    if missing:
+        names = ", ".join(s.name for s in missing)
+        logging.getLogger("refinet.deps").info(
+            f"Optional services not available: {names}. "
+            f"Run 'python pillar.py services' to see install commands."
+        )
+    return statuses
 
 
 async def main(host: str, port: int, gopher_port: int, enable_mesh: bool,
                enable_gopher: bool = True):
     """Launch all Pillar services."""
-    check_dependencies()
+    check_dependencies(load_config())
 
     # --- Onboarding gate: first-run wizard must complete before normal startup ---
     from onboarding.wizard import is_onboarding_complete
@@ -110,6 +108,10 @@ async def main(host: str, port: int, gopher_port: int, enable_mesh: bool,
     # so the first health check cycle starts from a clean state.
     init_live_db()
     reset_peer_statuses_to_unknown()
+
+    # Register the built-in REFInet gopherhole (idempotent)
+    from db.live_db import ensure_refinet_gopherhole
+    ensure_refinet_gopherhole(pid_data)
 
     # Load bootstrap/manual peers from peers.json if it exists
     from mesh.discovery import load_bootstrap_peers
@@ -439,6 +441,35 @@ def _handle_recovery_command(args):
         print("Usage: pillar.py recovery {split|restore}")
 
 
+def cmd_services(args):
+    """Print service readiness table."""
+    import asyncio
+    import json as _json
+    from core.readiness import check_all, format_status_table, get_install_commands, check_tor_integration
+    config = load_config()
+    statuses = check_all(config)
+
+    if getattr(args, "check_tor", False):
+        print("Running Tor integration check (may take up to 2 minutes)...")
+        tor_status = asyncio.run(check_tor_integration(config))
+        # Replace the basic tor status with the live check result
+        statuses = [tor_status if s.key == "tor" else s for s in statuses]
+
+    if getattr(args, "json", False):
+        import dataclasses
+        print(_json.dumps([dataclasses.asdict(s) for s in statuses], indent=2))
+        return
+
+    print("\nREFInet Pillar — Service Readiness\n")
+    print(format_status_table(statuses))
+    cmds = get_install_commands(statuses)
+    if cmds:
+        print("\nTo install missing packages:")
+        for cmd in cmds:
+            print(f"  {cmd}")
+    print()
+
+
 def _add_server_args(parser):
     """Add server-related arguments to a parser."""
     parser.add_argument("--host", default=GOPHER_HOST, help="Bind address (default: 0.0.0.0)")
@@ -505,6 +536,20 @@ if __name__ == "__main__":
 
     recovery_sub.add_parser("restore", help="Restore key from recovery shares")
 
+    # 'services' subcommand — check optional dependencies
+    services_parser = subparsers.add_parser(
+        "services",
+        help="Check status of all optional services and dependencies"
+    )
+    services_parser.add_argument(
+        "--check-tor", action="store_true",
+        help="Also run live Tor integration check (takes 30-120s, requires internet)"
+    )
+    services_parser.add_argument(
+        "--json", action="store_true",
+        help="Output as JSON"
+    )
+
     args = parser.parse_args()
     setup_logging(getattr(args, "verbose", False))
 
@@ -514,6 +559,9 @@ if __name__ == "__main__":
         sys.exit(0)
     elif args.command == "recovery":
         _handle_recovery_command(args)
+        sys.exit(0)
+    elif args.command == "services":
+        cmd_services(args)
         sys.exit(0)
     elif args.command == "hole":
         if hasattr(args, "func"):

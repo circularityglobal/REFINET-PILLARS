@@ -1,0 +1,16 @@
+iREFInet Pillar — Downloads	fake	(NULL)	0
+i	fake	(NULL)	0
+iSource distribution and verification files.	fake	(NULL)	0
+i	fake	(NULL)	0
+9  pillar-latest.tar.gz	/holes/refinet/products/pillar/download/pillar-latest.tar.gz	PILLAR_HOST	PILLAR_PORT
+0  CHECKSUMS.txt	/holes/refinet/products/pillar/download/CHECKSUMS.txt	PILLAR_HOST	PILLAR_PORT
+0  Verification Instructions	/holes/refinet/products/pillar/download/verify.txt	PILLAR_HOST	PILLAR_PORT
+i	fake	(NULL)	0
+iAlternative install methods:	fake	(NULL)	0
+i  pip install refinet-pillar	fake	(NULL)	0
+i  pip install refinet-pillar[full]   (all optional deps)	fake	(NULL)	0
+i	fake	(NULL)	0
+hPyPI Package	URL:https://pypi.org/project/refinet-pillar/	PILLAR_HOST	PILLAR_PORT
+hDocker Hub	URL:https://hub.docker.com/r/refinet/pillar	PILLAR_HOST	PILLAR_PORT
+i	fake	(NULL)	0
+1  ← Back to Pillar	/holes/refinet/products/pillar	PILLAR_HOST	PILLAR_PORT

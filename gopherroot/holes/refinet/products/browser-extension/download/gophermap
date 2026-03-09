@@ -1,0 +1,11 @@
+iREFInet Browser Extension — Downloads	fake	(NULL)	0
+i	fake	(NULL)	0
+iInstall from your browser's extension store:	fake	(NULL)	0
+i	fake	(NULL)	0
+hChrome Web Store	URL:https://chrome.google.com/webstore/detail/refinet	PILLAR_HOST	PILLAR_PORT
+hFirefox Add-ons	URL:https://addons.mozilla.org/en-US/firefox/addon/refinet	PILLAR_HOST	PILLAR_PORT
+i	fake	(NULL)	0
+iOr build from source:	fake	(NULL)	0
+hSource Code on GitHub	URL:https://github.com/circularityglobal/REFINET-PILLARS/tree/main/browser-extension	PILLAR_HOST	PILLAR_PORT
+i	fake	(NULL)	0
+1  ← Back to Browser Extension	/holes/refinet/products/browser-extension	PILLAR_HOST	PILLAR_PORT

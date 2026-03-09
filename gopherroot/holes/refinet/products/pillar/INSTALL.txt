@@ -1,0 +1,120 @@
+REFInet Pillar — Installation Guide
+=====================================
+
+Prerequisites
+-------------
+
+  - Python 3.9 or later
+  - pip (Python package manager)
+  - A working TCP/IP network connection
+
+Step 1: Install Python
+----------------------
+
+macOS:
+    brew install python3
+    (or use the system Python if 3.9+)
+
+Ubuntu/Debian:
+    sudo apt update && sudo apt install python3 python3-pip
+
+Windows:
+    Download from https://python.org and check "Add to PATH"
+
+Verify:
+    python3 --version
+    (should print 3.9.x or later)
+
+Step 2: Install the Pillar
+--------------------------
+
+Option A — From PyPI (recommended):
+
+    pip3 install refinet-pillar
+
+    For all optional features (Tor, SIWE auth, WebSocket bridge):
+    pip3 install refinet-pillar[full]
+
+Option B — From source:
+
+    git clone https://github.com/circularityglobal/REFINET-PILLARS.git
+    cd REFINET-PILLARS
+    pip3 install -e .
+
+Option C — Docker:
+
+    docker pull refinet/pillar:0.2.0
+    docker run -p 7070:7070 -p 70:70 -v pillar-data:/root/.refinet refinet/pillar:0.2.0
+
+Step 3: First Run
+-----------------
+
+    python3 pillar.py
+
+On first run, the Pillar will:
+
+  1. Create ~/.refinet/ directory for all data
+  2. Generate your Ed25519 Pillar ID (PID)
+  3. Initialize the SQLite ledger database
+  4. Start the onboarding wizard (connect your EVM wallet)
+  5. Launch the Gopher server on port 7070
+
+You will see output like:
+
+    12:00:00 [refinet] INFO: Pillar ID: a1b2c3d4...
+    12:00:00 [refinet] INFO: Gopher server listening on 0.0.0.0:7070
+    12:00:00 [refinet] ws] WebSocket bridge listening on ws://127.0.0.1:7075
+
+Step 4: Verify It Works
+------------------------
+
+Open a new terminal and run:
+
+    curl gopher://localhost:7070/
+
+You should see a Gopher menu with your Pillar's identity, status,
+and navigation links. If you see this, your Pillar is running.
+
+You can also test with:
+
+    curl gopher://localhost:7070/1/about
+    curl gopher://localhost:7070/0/holes/refinet/about.txt
+
+Step 5: Connect the Browser Extension
+--------------------------------------
+
+  1. Install the REFInet browser extension from the Chrome Web Store
+     or Firefox Add-ons
+  2. The extension auto-connects to ws://localhost:7075
+  3. Click the extension icon to see your Pillar status
+  4. Authenticate with your EVM wallet for full access
+
+Step 6: Add Peers (Optional)
+-----------------------------
+
+For WAN connectivity beyond your local network:
+
+    python3 pillar.py peer add --host gopher.refinet.app --port 7070
+    python3 pillar.py peer list
+
+Or edit ~/.refinet/peers.json directly.
+
+Troubleshooting
+---------------
+
+Port 7070 in use:
+    python3 pillar.py --port 7071
+
+Port 70 requires root:
+    sudo python3 pillar.py
+    (or use --no-gopher to skip port 70)
+
+No peers found:
+    Add bootstrap peers manually (see Step 6)
+    Check firewall allows UDP port 7071 for multicast
+
+Database errors:
+    Delete ~/.refinet/db/ and restart (loses transaction history)
+
+For more help:
+    https://github.com/circularityglobal/REFINET-PILLARS/issues

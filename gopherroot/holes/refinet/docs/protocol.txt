@@ -1,0 +1,163 @@
+REFInet Protocol Specification Summary
+========================================
+
+Version: 0.2.0
+Date: March 2026
+
+
+1. BASE PROTOCOL
+-----------------
+
+REFInet extends the Gopher protocol (RFC 1436) with:
+  - Ed25519 content signing
+  - Mesh peer discovery
+  - Gopherhole registry replication
+  - Typed WebSocket bridge for browser clients
+
+The base Gopher flow is preserved:
+  1. Client opens TCP connection to Pillar
+  2. Client sends selector + CRLF
+  3. Server responds with menu or file content
+  4. Connection closes
+
+REFInet adds a signature block appended to text responses:
+
+    ---BEGIN REFINET SIGNATURE---
+    pid:<SHA-256 of public key>
+    pubkey:<Ed25519 public key hex>
+    sig:<Ed25519 signature hex>
+    hash:<SHA-256 of content>
+    ts:<ISO 8601 timestamp>
+    v:<protocol version>
+    ---END REFINET SIGNATURE---
+
+
+2. PORTS
+--------
+
+  7070  REFInet Gopher (full features)
+  70    Standard Gopher (RFC 1436 compatible, no REFInet features)
+  7073  GopherS (Gopher over TLS)
+  7074  Privacy proxy
+  7075  WebSocket bridge (JSON protocol for browser extension)
+  7071  UDP multicast (peer discovery announcements)
+
+
+3. IDENTITY
+-----------
+
+Pillar ID (PID) = SHA-256(Ed25519_public_key)
+
+Key material stored in ~/.refinet/pid.json:
+  - pid: hex string (64 chars)
+  - public_key: Ed25519 public key (hex)
+  - private_key: Ed25519 private key (hex, optionally encrypted)
+  - created_at: Unix timestamp
+  - key_store: "software" | "hsm"
+
+
+4. PEER DISCOVERY
+-----------------
+
+4.1 UDP Multicast (LAN)
+
+  Group:    224.0.70.70
+  Port:     7071
+  Interval: 30 seconds
+
+  Announcement payload (JSON):
+    {
+      "pid": "<pillar id>",
+      "public_key": "<ed25519 pubkey hex>",
+      "hostname": "<bind address>",
+      "port": 7070,
+      "pillar_name": "<human-readable name>",
+      "protocol_version": "0.2.0"
+    }
+
+4.2 Bootstrap Peers (WAN)
+
+  File: ~/.refinet/peers.json
+  Format: [{"host": "...", "port": 7070, "name": "..."}]
+
+4.3 Peer Exchange
+
+  Selector: /peer_exchange
+  Payload: base64-encoded JSON peer list
+  Response: Pillar's own peer list
+
+
+5. GOPHERHOLE REPLICATION
+--------------------------
+
+5.1 Registry Format
+
+  Selector: /directory.json
+  Response: JSON array or envelope:
+    {
+      "schema_version": 1,
+      "gopherholes": [
+        {
+          "pid": "...",
+          "selector": "/holes/mysite",
+          "name": "My Site",
+          "description": "...",
+          "owner_address": "0x...",
+          "pubkey_hex": "...",
+          "signature": "...",
+          "registered_at": "2026-03-01"
+        }
+      ]
+    }
+
+5.2 Signature Verification
+
+  Before importing a remote gopherhole, the receiving Pillar:
+  1. Constructs canonical JSON of the record
+  2. Verifies the Ed25519 signature against pubkey_hex
+  3. Rejects invalid signatures and logs the event
+
+5.3 Replication Interval
+
+  Default: every 300 seconds (5 minutes)
+  Configurable via REPLICATION_INTERVAL_SEC
+
+
+6. WEBSOCKET BRIDGE
+--------------------
+
+  Endpoint: ws://127.0.0.1:7075
+  Origin:   Restricted to browser extension origins
+
+  Request format:
+    {"selector": "/path", "session_id": "optional"}
+
+  Typed messages:
+    {"type": "identity"}
+    {"type": "auth_challenge", "address": "0x..."}
+    {"type": "auth_verify", "address": "0x...", "signature": "...", "message": "..."}
+    {"type": "browse_remote", "host": "...", "port": 7070, "selector": "..."}
+
+  Response format:
+    {"status": "ok", "data": "...", "signature": {...}}
+
+
+7. ACCOUNTING CALENDAR
+-----------------------
+
+  13 months x 28 days = 364 days
+  Day 365 (366 in leap year) = accounting balance day
+
+  All transactions and metrics are indexed by accounting date:
+    (accounting_day, accounting_month, accounting_year)
+
+  Live database retains 13 months of data.
+  Older data is archived to yearly SQLite files.
+
+
+8. RATE LIMITING
+-----------------
+
+  Default: 100 requests per 60 seconds per IP address
+  Implemented via token bucket algorithm
+  Applied at the Gopher TCP handler level

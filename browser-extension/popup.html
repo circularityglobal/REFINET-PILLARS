@@ -19,13 +19,31 @@
     <div id="pid-badge" class="pid-badge hidden"></div>
   </header>
 
-  <nav id="breadcrumb">
-    <a href="#" data-selector="/">root</a>
+  <nav class="tab-bar">
+    <button class="tab-btn active" data-tab="browse">Browse</button>
+    <button class="tab-btn" data-tab="services">Services</button>
   </nav>
 
-  <main id="content">
-    <p class="muted">Connecting to Pillar...</p>
-  </main>
+  <div id="tab-browse" class="tab-panel">
+    <nav id="breadcrumb">
+      <a href="#" data-selector="/">root</a>
+    </nav>
+
+    <main id="content">
+      <p class="muted">Connecting to Pillar...</p>
+    </main>
+  </div>
+
+  <div id="tab-services" class="tab-panel hidden">
+    <div id="services-list">
+      <p class="muted">Checking services...</p>
+    </div>
+    <div id="services-install" class="hidden">
+      <p class="muted install-label">To install missing packages:</p>
+      <code id="install-cmd" class="install-code"></code>
+      <button id="btn-copy-install" class="btn-secondary">Copy</button>
+    </div>
+  </div>
 
   <!-- Auth modal overlay -->
   <div id="auth-modal" class="modal hidden">

@@ -1,0 +1,59 @@
+REFInet Pillar — Changelog
+===========================
+
+All notable changes are documented here.
+Format follows Keep a Changelog (https://keepachangelog.com/).
+
+
+[0.2.0] — 2026-03-08
+---------------------
+
+Added:
+  - Docker support (Dockerfile + docker-compose.yml)
+  - WebSocket CORS restriction with configurable origin allowlist
+  - Optional dependency status report at startup
+  - WAN peer discovery via bootstrap peer list (~/.refinet/peers.json)
+  - Peer management CLI: pillar.py peer add/list/remove
+  - Browser extension v0.4.0 with EIP-6963 multi-wallet support
+  - PID embedded in SIWE challenge for PID-SIWE correlation
+  - WebSocket bridge and IPC server for browser extension
+  - /identity.json Gopher endpoint for browser PID retrieval
+  - Typed WebSocket auth messages (identity, auth, browse_remote)
+  - window.refinet content script API
+  - Peer PID exchange via browse_remote message type
+  - Multi-profile identity management
+  - Shamir secret sharing recovery (split/restore)
+  - Encrypted vault with AES-256-GCM
+  - Zero-knowledge proof authentication (Schnorr ZKP)
+  - EVM RPC gateway with 5-chain support and failover
+  - Gopher /download route with binary file serving
+  - 437 passing tests
+
+Changed:
+  - WebSocket origins locked down (was open, now allowlist)
+  - Optional deps use try/except + flag pattern
+  - RPC failover cycles through multiple endpoints per chain
+
+Security:
+  - WebSocket CORS requires explicit origin allowlist
+  - SIWE domain separation (pillar vs browser)
+  - SSRF protection on Gopher proxy
+  - Rate limiting: 100 req/60s per IP
+
+
+[0.1.0] — 2026-02-15
+---------------------
+
+Added:
+  - Initial Gopher server on TCP port 7070
+  - Ed25519 Pillar ID (PID) generation and content signing
+  - SQLite ledger with 13-month live + yearly archive rotation
+  - DApp file parser and runtime
+  - Content indexing and transaction recording
+  - Gopherhole creation, listing, and verification CLI
+  - Mesh peer discovery via UDP multicast
+  - Registry replication between peers
+  - Dual-port serving (7070 REFInet + 70 standard Gopher)
+  - SIWE wallet authentication (EIP-4361)
+  - Tor hidden service integration (optional)
+  - 387 passing tests

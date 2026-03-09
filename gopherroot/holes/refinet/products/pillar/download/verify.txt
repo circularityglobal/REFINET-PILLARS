@@ -1,0 +1,54 @@
+REFInet Pillar — Download Verification
+========================================
+
+All official REFInet releases are signed and checksummed.
+
+
+SHA-256 VERIFICATION
+--------------------
+
+1. Download the tarball and CHECKSUMS.txt
+2. Verify:
+
+    sha256sum -c CHECKSUMS.txt
+
+   Or manually:
+
+    sha256sum pillar-latest.tar.gz
+
+   Compare the output hash to the value in CHECKSUMS.txt.
+
+
+ED25519 SIGNATURE VERIFICATION
+-------------------------------
+
+Release commits are signed with the REFInet project Ed25519 key.
+The project public key is published in the repository at:
+
+    https://github.com/circularityglobal/REFINET-PILLARS
+
+To verify a git tag signature:
+
+    git tag -v v0.2.0
+
+
+GPG VERIFICATION (OPTIONAL)
+----------------------------
+
+If GPG signatures are provided alongside releases:
+
+    gpg --verify pillar-latest.tar.gz.sig pillar-latest.tar.gz
+
+
+BUILD FROM SOURCE
+-----------------
+
+The most secure installation method is building from source:
+
+    git clone https://github.com/circularityglobal/REFINET-PILLARS.git
+    cd REFINET-PILLARS
+    git verify-tag v0.2.0
+    git checkout v0.2.0
+    pip3 install -e .
+
+This way you can audit every line of code before running it.

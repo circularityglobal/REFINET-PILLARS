@@ -462,6 +462,86 @@ btnConnect.addEventListener("click", async () => {
   }, 500);
 });
 
+// --- Tab Switching ---
+
+document.querySelectorAll(".tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    // Deactivate all tabs and panels
+    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach((p) => p.classList.add("hidden"));
+
+    // Activate clicked tab
+    btn.classList.add("active");
+    const panel = document.getElementById("tab-" + btn.dataset.tab);
+    if (panel) panel.classList.remove("hidden");
+
+    // Load services data when switching to Services tab
+    if (btn.dataset.tab === "services") {
+      loadServices();
+    }
+  });
+});
+
+// --- Services Tab ---
+
+async function loadServices() {
+  const list = document.getElementById("services-list");
+  const installDiv = document.getElementById("services-install");
+  const installCmd = document.getElementById("install-cmd");
+
+  try {
+    // Fetch /health/services via background sendRequest
+    const resp = await sendMessage({ type: "request", selector: "/health/services" });
+    if (!resp || !resp.ok || !resp.data) {
+      list.innerHTML = '<p class="muted">Could not load service status.</p>';
+      return;
+    }
+
+    // The response data contains the JSON inside a Gopher response wrapper
+    const rawData = typeof resp.data === "string" ? resp.data : (resp.data.data || resp.data);
+    // Strip Gopher terminator
+    const jsonStr = (typeof rawData === "string" ? rawData : JSON.stringify(rawData))
+      .replace(/\r?\n\.\s*$/, "");
+    const statuses = JSON.parse(jsonStr);
+
+    list.innerHTML = "";
+    const missingCmds = [];
+
+    for (const s of statuses) {
+      const row = document.createElement("div");
+      row.className = "service-row";
+      const icon = s.available ? "\u2713" : (s.install_cmd ? "\u25CB" : "\u2717");
+      const iconClass = s.available ? "ok" : "missing";
+      row.innerHTML =
+        '<span class="service-icon ' + iconClass + '">' + escapeHtml(icon) + "</span>" +
+        '<span class="service-name">' + escapeHtml(s.name) + "</span>" +
+        (s.version ? '<span class="service-version">v' + escapeHtml(s.version) + "</span>" : "") +
+        (!s.available && s.install_cmd ? '<span class="service-cmd">' + escapeHtml(s.install_cmd) + "</span>" : "");
+      list.appendChild(row);
+      if (!s.available && s.install_cmd && s.install_cmd.startsWith("pip")) {
+        missingCmds.push(s.install_cmd);
+      }
+    }
+
+    if (missingCmds.length > 0) {
+      // Combine pip installs
+      const packages = missingCmds
+        .map((c) => c.replace("pip install ", ""))
+        .join(" ");
+      installCmd.textContent = "pip install " + packages;
+      installDiv.classList.remove("hidden");
+
+      document.getElementById("btn-copy-install").onclick = () => {
+        navigator.clipboard.writeText(installCmd.textContent);
+      };
+    } else {
+      installDiv.classList.add("hidden");
+    }
+  } catch (e) {
+    list.innerHTML = '<p class="muted">Could not load service status.</p>';
+  }
+}
+
 // --- Init ---
 
 (async function init() {
