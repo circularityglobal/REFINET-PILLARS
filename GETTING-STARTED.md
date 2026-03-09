@@ -464,7 +464,7 @@ Everything lives in `~/.refinet/`:
 python3 -m pytest tests/ -v
 ```
 
-**Current status:** 479 passed, 5 skipped
+**Current status:** 484 tests collected, 479 passed, 5 skipped
 
 The 5 skips are expected:
 - 2 skips: Tor binary not installed on the test machine
@@ -476,8 +476,8 @@ The 5 skips are expected:
 
 - **Codebase:** 14,000+ lines of Python across 76+ files
 - **Browser extension:** 8 files (Manifest v3)
-- **Test suite:** 33 test files, 479 passing tests
-- **Gopher routes:** 30+ endpoints
+- **Test suite:** 33 test files, 484 tests (479 passing, 5 skipped)
+- **Gopher routes:** 39 dynamic + 3 static endpoints
 - **Database tables:** 10+
 - **Supported EVM chains:** 5
 - **Optional dependencies:** 5 (all gracefully degrade)

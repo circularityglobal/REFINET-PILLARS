@@ -43,7 +43,7 @@ Create `.dapp` definition files in `gopherroot/dapps/` to expose on-chain intera
 git clone https://github.com/circularityglobal/REFINET-PILLARS.git
 cd REFINET-PILLARS
 pip3 install -r requirements.txt
-python -m pytest tests/ -q    # Should pass 479+ tests
+python -m pytest tests/ -q    # Should pass 484+ tests
 python3 pillar.py run -v      # Start locally with verbose logging
 ```
 

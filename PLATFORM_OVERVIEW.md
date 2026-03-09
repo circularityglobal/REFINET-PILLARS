@@ -475,6 +475,24 @@ All routes are handled by `GopherServer._route()` in `core/gopher_server.py`.
 | `/ledger` | `build_ledger_document()` | Ledger status and metrics |
 | `/search` | `_route_search()` | Full-text search across content index (type-7 query input) |
 | `/status.json` | JSON response | Machine-readable Pillar status (PID, version, uptime, peers, tx count) |
+| `/releases` | `build_releases_menu()` | Release history and download links |
+| `/download` | `build_download_menu()` | Download landing page |
+| `/download/<file>` | `_serve_binary()` | Binary file download (8KB chunked, path-traversal protected) |
+| `/pillar-setup` | `build_pillar_setup_menu()` | Pillar setup instructions |
+| `/welcome` | `build_welcome_menu()` | Welcome / onboarding landing |
+| `/pillar/status` | `_build_pillar_status_response()` | Detailed pillar status |
+| `/identity` | `build_identity_menu()` | Pillar identity (text format) |
+| `/identity.json` | JSON envelope | Deployer binding identity (JSON for browser extension) |
+| `/identity/verify` | Deployer binding verification | Verify a PID against public key |
+| `/vault` | `build_vault_menu()` | Encrypted vault access |
+| `/settings` | `build_settings_menu()` | Pillar configuration |
+| `/sync` | `build_sync_menu()` | Replication sync status |
+| `/health` | Health check | Node health summary |
+| `/health/services` | JSON service status | Per-service health breakdown (machine-readable) |
+| `/onboarding/readiness` | Readiness check | First-run readiness status |
+| `/onboarding/readiness/install` | Install helper | Guided dependency installation |
+| `/auth/zkp-challenge` | ZKP challenge | Zero-knowledge proof challenge generation |
+| `/auth/zkp-verify` | ZKP verify | Zero-knowledge proof verification |
 
 ### Static Routes (served from `gopherroot/`)
 
@@ -809,20 +827,37 @@ lynx gopher://localhost:7070           # Using lynx
 
 | Test Module | Tests | Coverage Area |
 |-------------|-------|--------------|
+| `tests/test_routes.py` | 41 | End-to-end TCP route integration + rate limiting |
+| `tests/test_websocket_bridge.py` | 40 | WebSocket bridge (connection, auth, messaging) |
 | `tests/test_synergy.py` | 31 | Cross-component integration (Tor + mesh, dual-port + replication, full stack) |
 | `tests/test_gap_closure.py` | 26 | Edge cases and gap coverage (error paths, boundary conditions, concurrency) |
+| `tests/test_discovery.py` | 25 | Mesh peer discovery (announce/parse, hostname replacement, health monitoring) |
 | `tests/test_dual_port.py` | 23 | Dual-port architecture (port 7070 + port 70, route gating, search on port 70) |
-| `tests/test_routes.py` | 21 | End-to-end TCP route integration (all 23 dynamic routes + rate limiting) |
-| `tests/test_discovery.py` | 20 | Mesh peer discovery (announce/parse, hostname replacement, health monitoring) |
+| `tests/test_forward_proxy.py` | 22 | Forward proxy + SSRF protection |
+| `tests/test_recovery.py` | 18 | Shamir secret recovery (split, restore) |
 | `tests/test_first_run.py` | 16 | First-run initialization (PID generation, DB creation, gopherhole scaffolding) |
 | `tests/test_tor_manager.py` | 15 | TorManager lifecycle (start/stop, auto-restart, privkey persistence, health checks) |
+| `tests/test_siwe.py` | 15 | SIWE challenge generation and signature verification |
+| `tests/test_onboarding_ws.py` | 14 | Onboarding wizard WebSocket integration |
+| `tests/test_profiles.py` | 13 | Profile management (create, switch, delete) |
 | `tests/test_gopherholes.py` | 13 | Gopherhole creation, validation, signature verification, peer health |
 | `tests/test_gopher_client.py` | 13 | Async Gopher client (fetch, ping, SSRF protection) |
+| `tests/test_encrypted_channel.py` | 13 | Encrypted channel communication |
+| `tests/test_zkp.py` | 12 | Zero-knowledge proof auth (challenge, verify) |
+| `tests/test_vpn_manager.py` | 12 | VPN manager lifecycle |
 | `tests/test_gophermap_parser.py` | 12 | Gopher menu parsing (all item types, edge cases) |
-| `tests/test_siwe.py` | 11 | SIWE challenge generation and signature verification |
+| `tests/test_hsm.py` | 10 | Hardware security module integration |
+| `tests/test_download_route.py` | 10 | Download route (gophermap, binary, path traversal) |
 | `tests/test_dapp.py` | 10 | DApp definition parsing (metadata, ABI, docs, flows, warnings) |
+| `tests/test_vault.py` | 9 | Encrypted vault operations |
+| `tests/test_tls.py` | 9 | TLS/GopherS listener |
 | `tests/test_replication.py` | 9 | Peer registry synchronization and signature verification |
+| `tests/test_peer_cli.py` | 9 | Peer CLI subcommands |
 | `tests/test_gopherhole_cli.py` | 9 | CLI commands for gopherhole management |
+| `tests/test_refinet_gopherhole.py` | 8 | REFInet-specific gopherhole features |
+| `tests/test_onboarding_wizard.py` | 7 | Onboarding wizard flow |
+| `tests/test_binding.py` | 7 | Binding/port allocation |
+| `tests/test_ipc_socket.py` | 6 | IPC socket communication |
 | `tests/test_rpc.py` | 5 | RPC gateway connectivity and chain support |
 | `tests/test_tor_integration.py` | 2 | Tor integration smoke tests (requires Tor binary — skipped in CI) |
 
@@ -852,37 +887,67 @@ lynx gopher://localhost:7070           # Using lynx
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `pillar.py` | 253 | Main entry point, CLI parsing, async service launcher, Tor lifecycle |
-| `core/config.py` | 89 | Constants, paths, ports, protocol version, Tor defaults, directory init |
-| `core/gopher_server.py` | 916 | Async TCP Gopher server, route handling, tx logging, rate limiting, dual-port |
-| `core/menu_builder.py` | 476 | Dynamic Gopher menu generation (all menu types, Tor-aware, RPC links) |
-| `core/dapp.py` | 152 | DApp definition parser (`.dapp` file format) |
+| `pillar.py` | 617 | Main entry point, CLI parsing, async service launcher, Tor lifecycle |
+| `core/config.py` | 126 | Constants, paths, ports, protocol version, Tor defaults, directory init |
+| `core/gopher_server.py` | 1,323 | Async TCP Gopher server, route handling, tx logging, rate limiting, dual-port |
+| `core/menu_builder.py` | 974 | Dynamic Gopher menu generation (all menu types, Tor-aware, RPC links) |
+| `core/dapp.py` | 164 | DApp definition parser (`.dapp` file format) |
 | `core/gopherhole.py` | 174 | Gopherhole creation, validation, signature verification |
-| `core/gopher_client.py` | 136 | Async Gopher client for peer communication, SSRF protection |
-| `core/gophermap_parser.py` | 107 | RFC 1436 Gopher menu parser (structured items from raw text) |
-| `core/tor_manager.py` | 293 | Tor subprocess management, hidden service lifecycle, auto-restart |
-| `db/schema.py` | 192 | Full SQLite schema definitions (live + archive, with triggers) |
-| `db/live_db.py` | 481 | Live DB operations, accounting calendar, queries, peer onion tracking |
-| `db/archive_db.py` | 207 | Archive DB operations (yearly summary, monthly snapshots, migration) |
-| `crypto/pid.py` | 97 | PID generation, Ed25519 keypair management, persistence |
+| `core/gopher_client.py` | 138 | Async Gopher client for peer communication, SSRF protection |
+| `core/gophermap_parser.py` | 106 | RFC 1436 Gopher menu parser (structured items from raw text) |
+| `core/tor_manager.py` | 304 | Tor subprocess management, hidden service lifecycle, auto-restart |
+| `db/schema.py` | 330 | Full SQLite schema definitions (live + archive, with triggers) |
+| `db/live_db.py` | 536 | Live DB operations, accounting calendar, queries, peer onion tracking |
+| `db/archive_db.py` | 221 | Archive DB operations (yearly summary, monthly snapshots, migration) |
+| `crypto/pid.py` | 234 | PID generation, Ed25519 keypair management, persistence |
 | `crypto/signing.py` | 47 | SHA-256 hashing, Ed25519 signing and verification |
-| `mesh/discovery.py` | 215 | UDP multicast peer announcer, listener, health monitoring |
-| `mesh/replication.py` | 121 | Gopherhole registry sync between peers |
-| `auth/siwe.py` | 77 | EIP-4361 SIWE challenge generation and verification |
-| `auth/session.py` | 131 | Session token creation, validation, revocation |
+| `mesh/discovery.py` | 321 | UDP multicast peer announcer, listener, health monitoring |
+| `mesh/replication.py` | 142 | Gopherhole registry sync between peers |
+| `auth/siwe.py` | 90 | EIP-4361 SIWE challenge generation and verification |
+| `auth/session.py` | 198 | Session token creation, validation, revocation |
 | `rpc/gateway.py` | 142 | EVM JSON-RPC proxy (multi-chain, async) |
-| `rpc/chains.py` | 40 | Default chain configurations (5 EVM chains) |
+| `rpc/chains.py` | 53 | Default chain configurations (5 EVM chains) |
 | `rpc/config.py` | 52 | User-configurable RPC endpoint management |
 | `cli/hole.py` | 109 | Gopherhole CLI subcommands (create, list, verify) |
+| `onboarding/server.py` | 201 | Onboarding Gopher route handlers |
+| `onboarding/wizard.py` | 559 | First-run setup wizard logic |
+| `onboarding/readiness_step.py` | 114 | Dependency readiness check steps |
+| `vault/storage.py` | 200 | Encrypted vault storage backend |
+| `integration/websocket_bridge.py` | 509 | WebSocket bridge for browser extension |
 | `docs/backup.md` | 43 | Backup and recovery guide |
-| `tests/test_synergy.py` | 485 | Cross-component integration tests (31 tests) |
-| `tests/test_gap_closure.py` | 345 | Edge case and gap coverage tests (26 tests) |
-| `tests/test_dual_port.py` | 227 | Dual-port architecture tests (23 tests) |
-| `tests/test_routes.py` | 159 | End-to-end TCP route integration tests (21 tests) |
-| `tests/test_discovery.py` | 117 | Mesh peer discovery unit tests (20 tests) |
-| `tests/test_first_run.py` | 198 | First-run initialization tests (16 tests) |
+| `tests/test_routes.py` | 516 | End-to-end TCP route integration tests (41 tests) |
+| `tests/test_websocket_bridge.py` | 364 | WebSocket bridge tests (40 tests) |
+| `tests/test_synergy.py` | 486 | Cross-component integration tests (31 tests) |
+| `tests/test_gap_closure.py` | 347 | Edge case and gap coverage tests (26 tests) |
+| `tests/test_discovery.py` | 220 | Mesh peer discovery tests (25 tests) |
+| `tests/test_dual_port.py` | 231 | Dual-port architecture tests (23 tests) |
+| `tests/test_forward_proxy.py` | 105 | Forward proxy tests (22 tests) |
+| `tests/test_recovery.py` | 116 | Shamir secret recovery tests (18 tests) |
+| `tests/test_first_run.py` | 199 | First-run initialization tests (16 tests) |
 | `tests/test_tor_manager.py` | 186 | TorManager lifecycle tests (15 tests) |
+| `tests/test_siwe.py` | 207 | SIWE auth tests (15 tests) |
+| `tests/test_onboarding_ws.py` | 277 | Onboarding WebSocket tests (14 tests) |
+| `tests/test_profiles.py` | 132 | Profile management tests (13 tests) |
+| `tests/test_gopherholes.py` | 366 | Gopherhole tests (13 tests) |
+| `tests/test_gopher_client.py` | 99 | Gopher client tests (13 tests) |
+| `tests/test_encrypted_channel.py` | 139 | Encrypted channel tests (13 tests) |
+| `tests/test_zkp.py` | 102 | ZKP auth tests (12 tests) |
+| `tests/test_vpn_manager.py` | 84 | VPN manager tests (12 tests) |
+| `tests/test_gophermap_parser.py` | 97 | Gopher menu parser tests (12 tests) |
+| `tests/test_hsm.py` | 59 | HSM integration tests (10 tests) |
+| `tests/test_download_route.py` | 186 | Download route tests (10 tests) |
+| `tests/test_dapp.py` | 127 | DApp definition tests (10 tests) |
+| `tests/test_vault.py` | 112 | Encrypted vault tests (9 tests) |
+| `tests/test_tls.py` | 94 | TLS/GopherS tests (9 tests) |
+| `tests/test_replication.py` | 175 | Replication tests (9 tests) |
+| `tests/test_peer_cli.py` | 85 | Peer CLI tests (9 tests) |
+| `tests/test_gopherhole_cli.py` | 104 | Gopherhole CLI tests (9 tests) |
+| `tests/test_refinet_gopherhole.py` | 171 | REFInet gopherhole tests (8 tests) |
+| `tests/test_onboarding_wizard.py` | 242 | Onboarding wizard tests (7 tests) |
+| `tests/test_binding.py` | 227 | Binding/port tests (7 tests) |
+| `tests/test_ipc_socket.py` | 56 | IPC socket tests (6 tests) |
+| `tests/test_rpc.py` | 50 | RPC gateway tests (5 tests) |
 | `tests/test_tor_integration.py` | 83 | Tor integration smoke tests (2 tests, requires `tor` binary) |
 | `gopherroot/gophermap` | — | Static root menu |
 | `gopherroot/dapps/uniswap-v3.dapp` | — | Example DApp definition (Uniswap V3 swap) |
-| **Total source** | **~4,640** | Excluding tests and content files |
+| **Total source** | **~7,984** | Excluding tests and content files |

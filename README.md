@@ -146,11 +146,14 @@ refinet-pillar/
 ├── rpc/                     # EVM JSON-RPC gateway (5 chains)
 ├── cli/                     # CLI subcommands
 ├── proxy/                   # Privacy proxy (SSRF-protected)
+├── onboarding/             # First-run setup wizard & readiness checks
+├── vault/                  # Encrypted storage backend
 ├── integration/             # Cross-module integration
 ├── scripts/                 # Deployment & release scripts
 ├── tests/                   # 484 tests across 33 modules
 ├── browser-extension/       # Chrome extension v0.4.0
 ├── gopherroot/              # Served Gopher content
+├── website/                # Landing page & curl installer
 ├── deploy/                  # systemd service + install script
 ├── docs/                    # Wire formats, backup guide
 └── fly.toml                 # Fly.io deployment config

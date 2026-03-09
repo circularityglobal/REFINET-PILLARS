@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [0.3.0] — 2026-03-09
 
+### Fixed (Audit Remediation)
+- Removed 4 hardcoded personal paths in `docs/DEPLOYMENT.md` — replaced with generic `/path/to/REFINET-PILLARS`
+- Pinned `websockets>=12.0,<15` in `requirements.txt` to guard against `web3.py` transitive dependency on `websockets.legacy` (removed in v16)
+- Added missing `onboarding/`, `vault/`, `website/` directories to README project structure tree
+- Added 18 missing routes to PLATFORM_OVERVIEW route table (now 39 dynamic routes fully documented)
+- Updated all file index line counts in PLATFORM_OVERVIEW to match actual codebase (~4,640 → ~7,984 LOC)
+- Expanded test coverage table from 16 to 33 modules with verified counts (484 tests)
+- Updated CONTRIBUTING.md test count from 479+ to 484+
+
 ### Added
 - Fly.io deployment infrastructure (`fly.toml`, `scripts/headless_start.py`, `scripts/bootstrap_keygen.py`)
 - GitHub Actions CI/CD: deploy on push to main (`deploy.yml`)

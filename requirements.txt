@@ -11,5 +11,5 @@ eth-account>=0.10.0          # SIWE wallet auth
 web3>=6.0.0                  # EVM RPC gateway
 qrcode[pil]>=7.4.2          # QR code generation
 stem>=1.8.2                  # Tor hidden services
-websockets>=12.0             # WebSocket bridge
+websockets>=12.0,<15         # WebSocket bridge (pinned: web3.py uses websockets.legacy, removed in v16)
 # python-pkcs11>=0.7.0      # HSM hardware keys

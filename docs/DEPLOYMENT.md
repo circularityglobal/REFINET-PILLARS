@@ -27,7 +27,7 @@ You also need:
 Run this **once, locally, on a trusted machine**. This generates the Ed25519 keypair that becomes the permanent identity of the bootstrap node.
 
 ```bash
-cd /Users/circularityfinance/BROWSER/REFINET-PILLARS
+cd /path/to/REFINET-PILLARS   # wherever you cloned the repo
 python3 scripts/bootstrap_keygen.py > /tmp/bootstrap_pid.json
 ```
 
@@ -107,7 +107,7 @@ REFINET_PID_JSON Updated 2026-XX-XX
 The `fly.toml` in the repo already defines the app configuration. Create the app on Fly:
 
 ```bash
-cd /Users/circularityfinance/BROWSER/REFINET-PILLARS
+cd /path/to/REFINET-PILLARS   # wherever you cloned the repo
 
 # Create the app (uses fly.toml settings: app name = refinet-pillar, region = sjc)
 flyctl apps create refinet-pillar
@@ -145,7 +145,7 @@ flyctl volumes list --app refinet-pillar
 ### Option A: Deploy from Local Machine
 
 ```bash
-cd /Users/circularityfinance/BROWSER/REFINET-PILLARS
+cd /path/to/REFINET-PILLARS   # wherever you cloned the repo
 
 # Set the PID secret (if not done in Step 2a)
 flyctl secrets set REFINET_PID_JSON="$(cat /tmp/bootstrap_pid.json)" --app refinet-pillar
@@ -334,7 +334,7 @@ These are independent of the live node but complete the distribution picture.
 ### PyPI
 
 ```bash
-cd /Users/circularityfinance/BROWSER/REFINET-PILLARS
+cd /path/to/REFINET-PILLARS   # wherever you cloned the repo
 python3 -m build
 twine upload dist/*
 ```
