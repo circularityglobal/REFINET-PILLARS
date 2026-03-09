@@ -331,10 +331,10 @@ Requires `stem` package and the Tor binary:
 - Hot-reload on every request — no restart needed
 - Discoverable via `/dapps` route
 
-### Zero-Knowledge Proofs
+### Cryptographic Authentication
 - Schnorr ZKP: prove knowledge of private key without revealing it
-- Membership proofs: prove your PID is in a set without revealing which one
-- Session establishment from verified ZKP (alternative to SIWE)
+- Membership attestation: prove your PID is a member of a set (authenticated, not anonymous)
+- Session establishment from verified proof (alternative to SIWE)
 
 ### 13-Month Accounting Calendar
 - 13 months x 28 days = 364 days + 1 balance day

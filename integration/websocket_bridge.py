@@ -136,8 +136,16 @@ class WebSocketBridge:
             return self._handle_auth_verify(request)
         elif msg_type == "browse_remote":
             return await self._handle_browse_remote(request)
+        elif msg_type == "onboarding_connect":
+            return await self._handle_onboarding_connect(request)
+        elif msg_type == "onboarding_signature":
+            return await self._handle_onboarding_signature(request)
 
-        # Existing selector-based routing
+        # Existing selector-based routing (requires gopher_server)
+        if self.gopher_server is None:
+            return {"status": "error",
+                    "error": "Pillar is in onboarding mode. Use onboarding_connect to complete setup."}
+
         selector = request.get("selector", "")
         session_id = request.get("session_id")
 
@@ -160,7 +168,26 @@ class WebSocketBridge:
         return self._sign_response(selector, response_text)
 
     def _handle_identity(self) -> dict:
-        """Return Pillar identity as structured JSON."""
+        """Return Pillar identity as structured JSON.
+
+        During onboarding (gopher_server is None), loads PID directly
+        from disk and sets ``onboarding: true`` so the browser extension
+        can detect onboarding mode.
+        """
+        if self.gopher_server is None:
+            # Onboarding mode — gopher_server not started yet
+            from crypto.pid import load_pid
+            pid_data = load_pid()
+            resp = {"status": "ok", "type": "identity", "onboarding": True}
+            if pid_data:
+                resp["pid"] = pid_data["pid"]
+                resp["public_key"] = pid_data["public_key"]
+                resp["key_store"] = pid_data.get("key_store", "software")
+                resp["protocol"] = pid_data.get("protocol", "0.2.0")
+            else:
+                resp["pid"] = None
+            return resp
+
         return {
             "status": "ok",
             "type": "identity",
@@ -232,6 +259,126 @@ class WebSocketBridge:
             return {"status": "error", "error": f"Verification failed: {e}"}
         except Exception as e:
             return {"status": "error", "error": f"Auth error: {e}"}
+
+    async def _handle_onboarding_connect(self, request: dict) -> dict:
+        """Handle wallet address submission during onboarding.
+
+        Ensures a PID exists (generates one if needed), stores the
+        address in wizard state, generates a SIWE challenge, and
+        returns it so the browser extension can invoke personal_sign.
+        """
+        address = request.get("address", "").strip()
+        if not address.startswith("0x") or len(address) != 42:
+            return {"status": "error", "type": "onboarding_connect",
+                    "error": "Invalid EVM address. Format: 0x + 40 hex chars"}
+
+        password = request.get("password")  # optional encryption password
+
+        # Ensure PID exists (generate if first-run)
+        from crypto.pid import load_pid, generate_pid, save_pid
+        pid_data = load_pid()
+        if pid_data is None:
+            pid_data = generate_pid(password=password)
+            save_pid(pid_data)
+            logger.info("[WS] Onboarding: generated PID %s", pid_data["pid"][:16])
+
+        # Advance wizard state
+        from onboarding.wizard import get_onboarding_state, save_onboarding_state
+        state = get_onboarding_state()
+        state["step"] = "STEP_SIWE_CHALLENGE"
+        state["pid"] = pid_data["pid"]
+        state["evm_address"] = address
+        if password:
+            state["password"] = password
+
+        # Generate SIWE challenge
+        try:
+            from auth.session import create_challenge
+            chain_id = int(request.get("chain_id", 1))
+            challenge = create_challenge(address, chain_id=chain_id)
+        except ImportError:
+            return {"status": "error", "type": "onboarding_connect",
+                    "error": "SIWE requires: pip install eth-account"}
+        except Exception as e:
+            return {"status": "error", "type": "onboarding_connect",
+                    "error": f"Challenge generation failed: {e}"}
+
+        state["challenge_nonce"] = challenge["nonce"]
+        state["siwe_message"] = challenge["message"]
+        save_onboarding_state(state)
+
+        logger.info("[WS] Onboarding: challenge issued for %s", address)
+
+        return {
+            "status": "ok",
+            "type": "onboarding_challenge",
+            "message": challenge["message"],
+            "pid": pid_data["pid"],
+        }
+
+    async def _handle_onboarding_signature(self, request: dict) -> dict:
+        """Handle wallet signature submission during onboarding.
+
+        Verifies the SIWE signature against the stored challenge,
+        creates the deployer binding, and marks onboarding complete.
+        """
+        signature = request.get("signature", "").strip()
+        if not signature:
+            return {"status": "error", "type": "onboarding_signature",
+                    "error": "Missing signature"}
+
+        from crypto.pid import load_pid, get_private_key
+        from onboarding.wizard import get_onboarding_state, save_onboarding_state
+        from crypto.binding import create_binding
+
+        pid_data = load_pid()
+        if pid_data is None:
+            return {"status": "error", "type": "onboarding_signature",
+                    "error": "No PID found — send onboarding_connect first"}
+
+        state = get_onboarding_state()
+        siwe_message = state.get("siwe_message", "")
+        evm_address = state.get("evm_address", "")
+        if not siwe_message or not evm_address:
+            return {"status": "error", "type": "onboarding_signature",
+                    "error": "No challenge pending — send onboarding_connect first"}
+
+        password = state.get("password")
+        try:
+            priv_key = get_private_key(pid_data, password=password)
+        except ValueError as e:
+            return {"status": "error", "type": "onboarding_signature",
+                    "error": f"Cannot unlock private key: {e}"}
+
+        try:
+            binding = create_binding(
+                pid_data=pid_data,
+                evm_address=evm_address,
+                siwe_message=siwe_message,
+                siwe_signature=signature,
+                chain_id=1,
+                private_key=priv_key,
+                binding_type="deployer",
+            )
+        except (ValueError, Exception) as e:
+            logger.warning("[WS] Onboarding: binding failed — %s", e)
+            return {"status": "error", "type": "onboarding_signature",
+                    "error": f"Binding failed: {e}"}
+
+        # Mark onboarding complete
+        state["step"] = "COMPLETE"
+        state["binding_id"] = binding["binding_id"]
+        save_onboarding_state(state)
+
+        logger.info("[WS] Onboarding: binding created — %s", binding["binding_id"][:16])
+
+        return {
+            "status": "ok",
+            "type": "onboarding_complete",
+            "binding_id": binding["binding_id"],
+            "pid": binding["pid"],
+            "evm_address": binding["evm_address"],
+        }
 
     async def _handle_browse_remote(self, request: dict) -> dict:
         """Browse a remote Pillar, announcing own PID for peer discovery."""

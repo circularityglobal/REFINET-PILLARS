@@ -1,10 +1,10 @@
-"""Tests for crypto/zkp.py — Schnorr ZKP and MembershipProof."""
+"""Tests for crypto/zkp.py — Schnorr ZKP and MembershipAttestation."""
 
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives import serialization
 
-from crypto.zkp import SchnorrZKP, MembershipProof
+from crypto.zkp import SchnorrZKP, MembershipAttestation
 
 
 def _pub_hex(private_key: Ed25519PrivateKey) -> str:
@@ -59,8 +59,8 @@ class TestSchnorrZKP:
         assert not SchnorrZKP.verify(proof, pub)
 
 
-class TestMembershipProof:
-    """Membership proof (simplified OR-proof) tests."""
+class TestMembershipAttestation:
+    """Membership attestation tests (authenticated, not anonymous)."""
 
     def test_member_proves_membership(self, test_private_key):
         our_pub = _pub_hex(test_private_key)
@@ -68,27 +68,27 @@ class TestMembershipProof:
         other2 = _pub_hex(Ed25519PrivateKey.generate())
         members = [our_pub, other1, other2]
 
-        proof = MembershipProof.prove(test_private_key, members, context="vote")
-        assert MembershipProof.verify(proof, members, context="vote")
+        proof = MembershipAttestation.prove(test_private_key, members, context="vote")
+        assert MembershipAttestation.verify(proof, members, context="vote")
 
     def test_non_member_cant_prove(self):
         outsider = Ed25519PrivateKey.generate()
         member1 = _pub_hex(Ed25519PrivateKey.generate())
         member2 = _pub_hex(Ed25519PrivateKey.generate())
         with pytest.raises(ValueError, match="not in the member set"):
-            MembershipProof.prove(outsider, [member1, member2])
+            MembershipAttestation.prove(outsider, [member1, member2])
 
     def test_wrong_context_fails(self, test_private_key):
         our_pub = _pub_hex(test_private_key)
         members = [our_pub, _pub_hex(Ed25519PrivateKey.generate())]
-        proof = MembershipProof.prove(test_private_key, members, context="A")
-        assert not MembershipProof.verify(proof, members, context="B")
+        proof = MembershipAttestation.prove(test_private_key, members, context="A")
+        assert not MembershipAttestation.verify(proof, members, context="B")
 
     def test_proof_has_required_fields(self, test_private_key):
         our_pub = _pub_hex(test_private_key)
         members = [our_pub]
-        proof = MembershipProof.prove(test_private_key, members)
-        assert proof["type"] == "membership-proof-v1"
+        proof = MembershipAttestation.prove(test_private_key, members)
+        assert proof["type"] == "membership-attestation-v1"
         assert proof["member_count"] == 1
         assert "ring_commitments" in proof
         assert "ring_challenge" in proof
@@ -97,6 +97,6 @@ class TestMembershipProof:
     def test_wrong_member_count_fails(self, test_private_key):
         our_pub = _pub_hex(test_private_key)
         members = [our_pub, _pub_hex(Ed25519PrivateKey.generate())]
-        proof = MembershipProof.prove(test_private_key, members)
+        proof = MembershipAttestation.prove(test_private_key, members)
         # Verify against wrong member list
-        assert not MembershipProof.verify(proof, [our_pub])
+        assert not MembershipAttestation.verify(proof, [our_pub])

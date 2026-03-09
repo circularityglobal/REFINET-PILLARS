@@ -20,6 +20,7 @@ const MAX_RECONNECT_DELAY = 30000;
 let pillarIdentity = null; // {pid, public_key, key_store, protocol}
 let sessionData = null; // {session_id, expires_at, pid, address}
 let knownPids = {}; // {pid: {public_key, first_seen, last_seen, verified}}
+let onboardingMode = false; // True when Pillar is in first-run onboarding
 
 // --- WebSocket Connection ---
 
@@ -99,6 +100,7 @@ function broadcastStatus(connected) {
     connected,
     identity: pillarIdentity,
     session: sessionData ? { address: sessionData.address, pid: sessionData.pid } : null,
+    onboarding: onboardingMode,
   }).catch(() => {}); // Popup may not be open
 }
 
@@ -137,6 +139,23 @@ async function fetchIdentity() {
   try {
     const resp = await sendTypedMessage({ type: "identity" }, "identity");
     if (resp.status === "ok") {
+      // Detect onboarding mode
+      if (resp.onboarding) {
+        onboardingMode = true;
+        console.log("[REFInet] Pillar is in onboarding mode");
+        if (resp.pid) {
+          pillarIdentity = {
+            pid: resp.pid,
+            public_key: resp.public_key,
+            key_store: resp.key_store,
+            protocol: resp.protocol,
+          };
+        }
+        broadcastStatus(true);
+        return;
+      }
+
+      onboardingMode = false;
       pillarIdentity = {
         pid: resp.pid,
         public_key: resp.public_key,
@@ -488,6 +507,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       session: sessionData
         ? { address: sessionData.address, pid: sessionData.pid, expires_at: sessionData.expires_at }
         : null,
+      onboarding: onboardingMode,
     });
     return false;
   }
@@ -570,6 +590,102 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return session;
     })()
       .then((session) => sendResponse({ ok: true, session }))
+      .catch((err) => sendResponse({ ok: false, error: err.message }));
+    return true;
+  }
+
+  // --- Onboarding Handlers ---
+
+  if (message.type === "onboarding-status") {
+    sendResponse({ ok: true, onboarding: onboardingMode });
+    return false;
+  }
+
+  if (message.type === "onboarding-connect") {
+    // Send wallet address to Pillar for onboarding
+    sendTypedMessage(
+      {
+        type: "onboarding_connect",
+        address: message.address,
+        chain_id: message.chainId || 1,
+        password: message.password || null,
+      },
+      "onboarding_challenge"
+    )
+      .then((resp) => sendResponse({ ok: true, challenge: resp }))
+      .catch((err) => sendResponse({ ok: false, error: err.message }));
+    return true;
+  }
+
+  if (message.type === "onboarding-sign") {
+    // Send wallet signature to Pillar to complete onboarding
+    sendTypedMessage(
+      { type: "onboarding_signature", signature: message.signature },
+      "onboarding_complete"
+    )
+      .then((resp) => {
+        if (resp.status === "ok") {
+          onboardingMode = false;
+          // Re-fetch identity now that onboarding is done
+          fetchIdentity();
+        }
+        sendResponse({ ok: resp.status === "ok", result: resp });
+      })
+      .catch((err) => sendResponse({ ok: false, error: err.message }));
+    return true;
+  }
+
+  if (message.type === "onboarding-start") {
+    // One-click orchestrated onboarding flow:
+    // wallet discover → connect → send address → get challenge → sign → complete
+    (async () => {
+      const tabId = await getActiveTabId();
+      const uuid = message.walletUuid;
+      const chainId = message.chainId || 1;
+
+      // Step 1: Get accounts from wallet
+      const accounts = await walletRequestAccounts(tabId, uuid);
+      if (!accounts || accounts.length === 0) {
+        throw new Error("No accounts returned from wallet");
+      }
+      const address = accounts[0];
+
+      // Step 2: Send address to Pillar, receive SIWE challenge
+      const challengeResp = await sendTypedMessage(
+        {
+          type: "onboarding_connect",
+          address,
+          chain_id: chainId,
+          password: message.password || null,
+        },
+        "onboarding_challenge"
+      );
+      if (challengeResp.status !== "ok") {
+        throw new Error(challengeResp.error || "Onboarding connect failed");
+      }
+
+      // Step 3: Sign the SIWE challenge with wallet
+      const signature = await walletPersonalSign(
+        tabId, uuid, challengeResp.message, address
+      );
+
+      // Step 4: Submit signature to Pillar
+      const bindingResp = await sendTypedMessage(
+        { type: "onboarding_signature", signature },
+        "onboarding_complete"
+      );
+      if (bindingResp.status !== "ok") {
+        throw new Error(bindingResp.error || "Binding creation failed");
+      }
+
+      // Onboarding complete
+      onboardingMode = false;
+      await fetchIdentity();
+      broadcastStatus(true);
+
+      return bindingResp;
+    })()
+      .then((result) => sendResponse({ ok: true, result }))
       .catch((err) => sendResponse({ ok: false, error: err.message }));
     return true;
   }

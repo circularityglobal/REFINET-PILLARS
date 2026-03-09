@@ -120,12 +120,12 @@ class TestHandleMessage:
         assert "Invalid JSON" in result["error"]
 
     @pytest.mark.asyncio
-    async def test_null_server_returns_route_error(self):
-        """Without a real gopher_server, routing returns an error dict."""
+    async def test_null_server_returns_onboarding_error(self):
+        """Without a real gopher_server, selector routing returns onboarding mode error."""
         bridge = WebSocketBridge(gopher_server=None)
         result = await bridge._handle_message('{"selector": "/"}')
         assert result["status"] == "error"
-        assert "Route error" in result["error"]
+        assert "onboarding" in result["error"].lower()
 
 
 class TestIdentityMessage:

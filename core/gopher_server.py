@@ -142,8 +142,8 @@ def _accounting_date_dict() -> dict:
 REFINET_ROUTES = (
     "/auth", "/rpc", "/pid", "/transactions", "/peers",
     "/ledger", "/network", "/directory.json", "/status.json", "/search",
-    "/pillar/status", "/identity", "/identity.json", "/vault", "/settings",
-    "/sync", "/health",
+    "/pillar/status", "/identity", "/identity.json", "/identity/verify",
+    "/vault", "/settings", "/sync", "/health",
 )
 
 
@@ -889,14 +889,60 @@ class GopherServer:
             return build_identity_menu(self.pid_data, profiles, h, p)
 
         elif selector == "/identity.json":
+            from crypto.binding import get_deployer_binding
             envelope = {
-                "schema_version": 1,
+                "schema_version": 2,
                 "pid": self.pid_data["pid"],
                 "public_key": self.pid_data["public_key"],
                 "key_store": self.pid_data.get("key_store", "software"),
                 "protocol": self.pid_data.get("protocol", "0.2.0"),
             }
+            binding = get_deployer_binding(self.pid_data["pid"])
+            if binding:
+                envelope["deployer_binding"] = {
+                    "binding_id": binding["binding_id"],
+                    "evm_address": binding["evm_address"],
+                    "chain_id": binding["chain_id"],
+                    "pid_signature": binding["pid_signature"],
+                    "siwe_message": binding["siwe_message"],
+                    "siwe_signature": binding["siwe_signature"],
+                    "binding_type": binding["binding_type"],
+                    "created_at": binding["created_at"],
+                }
             return json.dumps(envelope, indent=2) + "\r\n.\r\n"
+
+        elif selector == "/identity/verify":
+            from crypto.binding import get_deployer_binding, verify_binding
+            binding = get_deployer_binding(self.pid_data["pid"])
+            lines = []
+            lines.append(info_line(""))
+            lines.append(info_line("  DEPLOYER BINDING VERIFICATION"))
+            lines.append(separator())
+            if not binding:
+                lines.append(info_line("  No deployer binding found for this Pillar."))
+                lines.append(info_line(""))
+                lines.append(info_line("  Run the onboarding wizard to create one."))
+            else:
+                lines.append(info_line(f"  PID:         {binding['pid']}"))
+                lines.append(info_line(f"  EVM Address: {binding['evm_address']}"))
+                lines.append(info_line(f"  Binding ID:  {binding['binding_id']}"))
+                lines.append(info_line(f"  Chain ID:    {binding['chain_id']}"))
+                lines.append(info_line(f"  Created:     {binding['created_at']}"))
+                lines.append(separator())
+                valid, reason = verify_binding(binding)
+                if valid:
+                    lines.append(info_line("  SIWE signature:      PASS"))
+                    lines.append(info_line("  Ed25519 pid_signature: PASS"))
+                    lines.append(info_line("  binding_id integrity:  PASS"))
+                    lines.append(info_line(""))
+                    lines.append(info_line("  Overall: VALID"))
+                else:
+                    lines.append(info_line(f"  Verification FAILED: {reason}"))
+            lines.append(info_line(""))
+            lines.append(separator())
+            lines.append(menu_link("Back to Identity", "/identity", h, p))
+            lines.append(info_line(""))
+            return "".join(lines)
 
         elif selector == "/vault":
             try:

@@ -40,7 +40,7 @@ import sys
 from core.config import GOPHER_HOST, GOPHER_PORT, PID_LOCKFILE, load_config
 from core.gopher_server import GopherServer
 from core.tor_manager import TorManager
-from crypto.pid import get_or_create_pid, get_short_pid
+from crypto.pid import get_or_create_pid, get_short_pid, is_encrypted
 from mesh.discovery import PeerAnnouncer, PeerListener, periodic_health_check
 from mesh.replication import periodic_replication
 from db.archive_db import periodic_archival
@@ -81,9 +81,30 @@ async def main(host: str, port: int, gopher_port: int, enable_mesh: bool,
                enable_gopher: bool = True):
     """Launch all Pillar services."""
     check_dependencies()
+
+    # --- Onboarding gate: first-run wizard must complete before normal startup ---
+    from onboarding.wizard import is_onboarding_complete
+    from onboarding.server import run_onboarding_server
+
+    # Ensure DB exists so is_onboarding_complete() can query pid_bindings
+    init_live_db()
+
+    if not is_onboarding_complete():
+        logger = logging.getLogger("refinet")
+        logger.info("First run detected — starting onboarding wizard on port %s", port)
+        await run_onboarding_server(host=host, port=port)
+        # run_onboarding_server blocks until wizard is complete
+        # then falls through to normal startup
+
     config = load_config()
     pid_data = get_or_create_pid()
     short_pid = get_short_pid(pid_data)
+
+    if not is_encrypted(pid_data):
+        logging.getLogger("refinet").warning(
+            "Private key is stored UNENCRYPTED. "
+            "Run 'pillar.py profile create --name <name>' to create an encrypted profile."
+        )
 
     # Ensure DB is initialized and peer statuses are reset to unknown
     # so the first health check cycle starts from a clean state.
@@ -292,7 +313,7 @@ def _handle_profile_command(args):
     cmd = getattr(args, "profile_command", None)
     if cmd == "create":
         password = None
-        if args.encrypt:
+        if not args.no_encrypt:
             password = getpass.getpass("Enter password for key encryption: ")
             confirm = getpass.getpass("Confirm password: ")
             if password != confirm:
@@ -303,6 +324,8 @@ def _handle_profile_command(args):
         print(f"  PID: {pid_data['pid']}")
         if password:
             print("  Private key: ENCRYPTED (AES-256-GCM)")
+        else:
+            print("  WARNING: Private key stored UNENCRYPTED (--no-encrypt was used)")
     elif cmd == "list":
         profiles = list_profiles()
         active = get_active_profile()
@@ -456,7 +479,8 @@ if __name__ == "__main__":
 
     profile_create = profile_sub.add_parser("create", help="Create a new profile")
     profile_create.add_argument("--name", required=True, help="Profile name")
-    profile_create.add_argument("--encrypt", action="store_true", help="Encrypt the private key")
+    profile_create.add_argument("--no-encrypt", action="store_true",
+                                help="Skip private key encryption (for headless/automated setups)")
 
     profile_sub.add_parser("list", help="List all profiles")
 

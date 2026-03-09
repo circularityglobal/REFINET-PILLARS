@@ -1,14 +1,17 @@
 """
-REFInet Pillar — Zero-Knowledge Proof Authentication (Schnorr Protocol)
+REFInet Pillar — Cryptographic Authentication (Schnorr Protocol)
 
-Provides privacy-preserving authentication using Schnorr-based ZKP:
+Provides authentication using Schnorr-based proofs:
   - Prove knowledge of a private key without revealing it
   - Non-interactive via Fiat-Shamir heuristic (hash-based challenge)
   - Compatible with Ed25519 keys used throughout REFInet
 
 Two proof types:
-  1. SchnorrZKP — Prove you own a specific PID
-  2. MembershipProof — Prove your PID is in a set without revealing which one
+  1. SchnorrZKP — Prove you own a specific PID (zero-knowledge: key not revealed)
+  2. MembershipAttestation — Prove your PID is a member of a set
+     NOTE: This is NOT anonymous. The verifier learns which member proved
+     membership. For anonymous membership proofs, a ring signature scheme
+     (e.g., LSAG) would be required.
 
 Usage:
     # Prover generates proof
@@ -136,13 +139,17 @@ class SchnorrZKP:
             return False
 
 
-class MembershipProof:
+class MembershipAttestation:
     """
-    Prove that a PID belongs to a set of PIDs without revealing which one.
+    Prove that a PID belongs to a set of PIDs (authenticated membership).
 
-    Uses a simplified OR-proof construction: the prover generates valid
-    proofs for their own key and simulated proofs for other keys, such
-    that the verifier cannot distinguish which proof is real.
+    IMPORTANT: This is NOT anonymous / zero-knowledge with respect to
+    membership. The proof embeds the prover's public key, so the verifier
+    learns exactly which member created the proof. This is an authenticated
+    membership attestation, not a ring signature.
+
+    For anonymous membership proofs, a proper ring signature scheme (e.g.,
+    LSAG — Linkable Spontaneous Anonymous Group) would be needed.
     """
 
     @staticmethod
@@ -151,13 +158,16 @@ class MembershipProof:
         """
         Prove membership in a set of public keys.
 
+        NOTE: The prover's identity IS revealed to the verifier.
+        This proves "I am a member" but does NOT hide which member.
+
         Args:
             private_key: The prover's Ed25519 private key
             member_pubkeys: List of public key hex strings (the set)
             context: Domain separation string
 
         Returns:
-            Membership proof dict
+            Membership attestation dict
         """
         our_pub = private_key.public_key().public_bytes(
             encoding=serialization.Encoding.Raw,
@@ -189,7 +199,7 @@ class MembershipProof:
         ring_challenge = hashlib.sha256(combined.encode("utf-8")).hexdigest()
 
         return {
-            "type": "membership-proof-v1",
+            "type": "membership-attestation-v1",
             "member_count": len(member_pubkeys),
             "ring_commitments": ring_commitments,
             "ring_challenge": ring_challenge,
@@ -201,13 +211,14 @@ class MembershipProof:
     def verify(membership_proof: dict, member_pubkeys: list[str],
                context: str = "") -> bool:
         """
-        Verify a membership proof.
+        Verify a membership attestation.
 
         Confirms that the prover knows a private key corresponding to
-        one of the public keys in member_pubkeys, without revealing which.
+        one of the public keys in member_pubkeys. NOTE: the prover's
+        identity is visible in the proof (not anonymous).
 
         Args:
-            membership_proof: Proof dict from prove()
+            membership_proof: Attestation dict from prove()
             member_pubkeys: The set of public keys
             context: Must match the context used in prove()
 
@@ -215,7 +226,7 @@ class MembershipProof:
             True if proof is valid and prover is a member
         """
         try:
-            if membership_proof.get("type") != "membership-proof-v1":
+            if membership_proof.get("type") not in ("membership-attestation-v1", "membership-proof-v1"):
                 return False
 
             if membership_proof.get("context", "") != context:
@@ -245,3 +256,7 @@ class MembershipProof:
 
         except Exception:
             return False
+
+
+# Backwards-compatible alias (deprecated — use MembershipAttestation)
+MembershipProof = MembershipAttestation

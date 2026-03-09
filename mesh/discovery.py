@@ -15,6 +15,7 @@ Think of it like Lightning Network channel discovery, but for Gopher.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import socket
 import struct
@@ -33,6 +34,18 @@ from db.live_db import upsert_peer, update_peer_onion
 logger = logging.getLogger("refinet.discovery")
 
 
+def verify_peer_identity(pid: str, public_key_hex: str) -> bool:
+    """Verify that a public key hashes to the claimed PID.
+
+    PID = SHA-256(public_key_bytes). If the key doesn't hash to the
+    claimed PID, the announcement is forged.
+    """
+    try:
+        return hashlib.sha256(bytes.fromhex(public_key_hex)).hexdigest() == pid
+    except (ValueError, TypeError):
+        return False
+
+
 def build_announce_message(pid_data: dict, hostname: str, port: int,
                            pillar_name: str, onion_address: str = None) -> bytes:
     """Build a JSON announcement message for multicast."""
@@ -49,6 +62,18 @@ def build_announce_message(pid_data: dict, hostname: str, port: int,
     }
     if onion_address:
         msg["onion_address"] = onion_address
+
+    # Include deployer binding summary (lightweight — no signatures)
+    # Peers fetch the full proof via /identity.json if they need to verify.
+    try:
+        from crypto.binding import get_deployer_binding
+        binding = get_deployer_binding(pid_data["pid"])
+        if binding:
+            msg["evm_address"] = binding["evm_address"]
+            msg["binding_id"] = binding["binding_id"]
+    except Exception:
+        pass  # DB not yet initialised or table missing — skip binding info
+
     return json.dumps(msg).encode("utf-8")
 
 
@@ -137,6 +162,13 @@ class PeerListener:
                     if not peer_pid or not peer_key or peer_pid == self.own_pid:
                         continue
 
+                    # Cryptographically verify PID matches public key
+                    if not verify_peer_identity(peer_pid, peer_key):
+                        logger.warning(
+                            f"Rejected peer: PID {peer_pid[:16]}... does not match announced public key"
+                        )
+                        continue
+
                     # Use the actual sender IP if hostname is "localhost"
                     hostname = msg.get("hostname", addr[0])
                     if hostname in ("localhost", "0.0.0.0", "127.0.0.1"):
@@ -154,6 +186,7 @@ class PeerListener:
                         port=msg.get("port", 7070),
                         pillar_name=msg.get("pillar_name"),
                         protocol_version=msg.get("version"),
+                        evm_address=msg.get("evm_address"),
                     )
 
                     # Store .onion address if announced
@@ -214,6 +247,10 @@ def load_bootstrap_peers(peers_file: Path) -> int:
             hostname = peer.get("hostname")
             pid = peer.get("pid")
             if not hostname or not pid:
+                continue
+            pub_key = peer.get("public_key", "")
+            if pub_key and not verify_peer_identity(pid, pub_key):
+                logger.warning(f"Bootstrap peer rejected: PID {pid[:16]}... does not match public key")
                 continue
             upsert_peer(
                 pid=pid,

@@ -126,6 +126,31 @@ class TestSIWEVerification:
         )
 
 
+class TestSIWENonceReplay:
+    """Test that nonce replay is rejected."""
+
+    def test_duplicate_nonce_rejected(self, memory_db):
+        """Inserting two sessions with the same nonce should fail (UNIQUE constraint)."""
+        memory_db.execute(
+            """INSERT INTO siwe_sessions
+               (session_id, address, nonce, issued_at, expires_at, signature, pid, created_at)
+               VALUES (?,?,?,?,?,?,?,?)""",
+            ("sess_a", "0xabc", "nonce_replay", "2026-01-01", "2026-01-02",
+             "sig1", "pid1", "2026-01-01"),
+        )
+        memory_db.commit()
+
+        import sqlite3
+        with pytest.raises(sqlite3.IntegrityError):
+            memory_db.execute(
+                """INSERT INTO siwe_sessions
+                   (session_id, address, nonce, issued_at, expires_at, signature, pid, created_at)
+                   VALUES (?,?,?,?,?,?,?,?)""",
+                ("sess_b", "0xabc", "nonce_replay", "2026-01-01", "2026-01-02",
+                 "sig1", "pid1", "2026-01-01"),
+            )
+
+
 class TestSIWESessionSchema:
     """Test that siwe_sessions table works correctly."""
 

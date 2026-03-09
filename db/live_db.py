@@ -58,6 +58,7 @@ def _migrate_live_db(conn):
         ("consecutive_failures", "INTEGER DEFAULT 0"),
         ("last_checked", "DATETIME"),
         ("onion_address", "TEXT"),
+        ("evm_address", "TEXT"),
     ]
     for col_name, col_def in peer_migrations:
         if col_name not in existing_peers:
@@ -205,19 +206,23 @@ def update_daily_metrics(pid: str, **kwargs):
 # Peer Management
 # ---------------------------------------------------------------------------
 def upsert_peer(pid: str, public_key: str, hostname: str = None,
-                port: int = 7070, pillar_name: str = None, protocol_version: str = None):
+                port: int = 7070, pillar_name: str = None,
+                protocol_version: str = None, evm_address: str = None):
     """Register or update a peer in the live DB."""
     with _connect() as conn:
         conn.execute(
-            """INSERT INTO peers (pid, public_key, hostname, port, last_seen, pillar_name, protocol_version)
-               VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)
+            """INSERT INTO peers (pid, public_key, hostname, port, last_seen,
+                                  pillar_name, protocol_version, evm_address)
+               VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?)
                ON CONFLICT(pid) DO UPDATE SET
                    hostname=excluded.hostname,
                    port=excluded.port,
                    last_seen=CURRENT_TIMESTAMP,
                    pillar_name=excluded.pillar_name,
-                   protocol_version=excluded.protocol_version""",
-            (pid, public_key, hostname, port, pillar_name, protocol_version),
+                   protocol_version=excluded.protocol_version,
+                   evm_address=COALESCE(excluded.evm_address, evm_address)""",
+            (pid, public_key, hostname, port, pillar_name, protocol_version,
+             evm_address),
         )
         conn.commit()
 

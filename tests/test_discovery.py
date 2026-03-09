@@ -1,15 +1,42 @@
 """Tests for mesh peer discovery module."""
 
+import hashlib
 import json
 import pytest
 from crypto.pid import generate_pid
 from mesh.discovery import (
     build_announce_message,
     parse_announce_message,
+    verify_peer_identity,
     PeerAnnouncer,
     PeerListener,
 )
 from core.config import PROTOCOL_VERSION
+
+
+class TestVerifyPeerIdentity:
+    """Test cryptographic verification of peer PID against public key."""
+
+    def test_valid_pid_matches_key(self):
+        pid_data = generate_pid()
+        assert verify_peer_identity(pid_data["pid"], pid_data["public_key"])
+
+    def test_mismatched_pid_rejected(self):
+        pid_data = generate_pid()
+        fake_pid = "a" * 64
+        assert not verify_peer_identity(fake_pid, pid_data["public_key"])
+
+    def test_invalid_hex_key_rejected(self):
+        assert not verify_peer_identity("a" * 64, "not_hex")
+
+    def test_empty_key_rejected(self):
+        assert not verify_peer_identity("a" * 64, "")
+
+    def test_swapped_keys_rejected(self):
+        """Two different PIDs' keys should not verify against each other's PID."""
+        pid1 = generate_pid()
+        pid2 = generate_pid()
+        assert not verify_peer_identity(pid1["pid"], pid2["public_key"])
 
 
 class TestBuildAnnounceMessage:

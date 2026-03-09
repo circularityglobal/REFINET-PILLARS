@@ -22,12 +22,14 @@ class TestLoadBootstrapPeers:
 
     def test_loads_valid_peers(self, tmp_path):
         init_live_db()
+        from crypto.pid import generate_pid
+        pid_data = generate_pid()
         peers = [
             {
                 "hostname": "10.0.0.5",
                 "port": 7070,
-                "pid": "a" * 64,
-                "public_key": "b" * 64,
+                "pid": pid_data["pid"],
+                "public_key": pid_data["public_key"],
                 "pillar_name": "Remote Pillar",
             }
         ]

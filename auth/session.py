@@ -76,6 +76,13 @@ def establish_session(address: str, message_text: str, signature: str) -> dict:
     nonce = parse_nonce(message_text)
 
     with _connect() as conn:
+        # Reject replayed nonces — each nonce must be used exactly once
+        existing = conn.execute(
+            "SELECT 1 FROM siwe_sessions WHERE nonce = ?", (nonce,)
+        ).fetchone()
+        if existing:
+            raise ValueError("Nonce already used — possible replay attack")
+
         conn.execute(
             """INSERT INTO siwe_sessions
                (session_id, address, nonce, issued_at, expires_at, signature,
@@ -141,7 +148,7 @@ def revoke_session(session_id: str):
 def establish_session_zkp(public_key_hex: str, proof: dict) -> dict:
     """
     Create a session from a verified ZKP proof.
-    Alternative to SIWE for privacy-preserving authentication.
+    Alternative to SIWE for cryptographic (non-wallet) authentication.
 
     Args:
         public_key_hex: Ed25519 public key of the authenticated party

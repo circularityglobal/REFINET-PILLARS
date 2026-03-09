@@ -138,7 +138,7 @@ CREATE TABLE IF NOT EXISTS siwe_sessions (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id    TEXT NOT NULL UNIQUE,     -- 32-byte random hex
     address       TEXT NOT NULL,            -- EVM address (checksummed)
-    nonce         TEXT NOT NULL,            -- 16-byte random hex
+    nonce         TEXT NOT NULL UNIQUE,     -- 16-byte random hex (UNIQUE prevents replay)
     issued_at     TEXT NOT NULL,            -- ISO 8601
     expires_at    TEXT NOT NULL,            -- ISO 8601
     signature     TEXT NOT NULL,            -- EIP-4361 signature from wallet
@@ -250,6 +250,42 @@ CREATE TABLE IF NOT EXISTS vault_items (
 
 CREATE INDEX IF NOT EXISTS idx_vault_items_pid
     ON vault_items (pid);
+
+-- =========================================================================
+-- PID BINDING — permanent wallet-to-Pillar identity anchor
+-- Append-only. A PID may have multiple bindings (key rotation),
+-- but the first binding is the canonical deployer record.
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS pid_bindings (
+    binding_id      TEXT PRIMARY KEY,       -- SHA-256(pid + evm_address + nonce)
+    pid             TEXT NOT NULL,          -- Ed25519 PID (SHA-256 of pubkey)
+    public_key      TEXT NOT NULL,          -- Ed25519 public key hex (for verification)
+    evm_address     TEXT NOT NULL,          -- checksummed EVM address
+    chain_id        INTEGER NOT NULL,       -- EVM chain the wallet signed on
+    siwe_message    TEXT NOT NULL,          -- full SIWE message text (EIP-4361)
+    siwe_signature  TEXT NOT NULL,          -- wallet's ECDSA signature over siwe_message
+    pid_signature   TEXT NOT NULL,          -- Ed25519 signature of binding_id by this Pillar
+                                            -- proves the PID keypair acknowledges the binding
+    binding_type    TEXT DEFAULT 'deployer', -- 'deployer' | 'operator' | 'rotation'
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TRIGGER IF NOT EXISTS pid_bindings_no_update
+    BEFORE UPDATE ON pid_bindings
+BEGIN
+    SELECT RAISE(ABORT, 'pid_bindings is immutable — no updates allowed');
+END;
+
+CREATE TRIGGER IF NOT EXISTS pid_bindings_no_delete
+    BEFORE DELETE ON pid_bindings
+BEGIN
+    SELECT RAISE(ABORT, 'pid_bindings is immutable — no deletes allowed');
+END;
+
+CREATE INDEX IF NOT EXISTS idx_pid_bindings_pid
+    ON pid_bindings (pid);
+CREATE INDEX IF NOT EXISTS idx_pid_bindings_address
+    ON pid_bindings (evm_address);
 """
 
 ARCHIVE_SCHEMA = """
