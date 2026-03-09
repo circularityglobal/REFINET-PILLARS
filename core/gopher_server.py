@@ -1281,10 +1281,10 @@ class GopherServer:
         except ImportError:
             return build_rpc_menu({}, hostname, port, available=False)
 
-    async def start(self):
-        """Start the Gopher server."""
+    async def start(self, ssl_context=None):
+        """Start the Gopher server, optionally with TLS."""
         server = await asyncio.start_server(
-            self.handle_client, self.host, self.port
+            self.handle_client, self.host, self.port, ssl=ssl_context
         )
 
         short_pid = get_short_pid(self.pid_data)
@@ -1310,11 +1310,14 @@ class GopherServer:
             print()
             print("  Press Ctrl+C to shut down.")
             print()
+        elif ssl_context:
+            print(f"  🔒 GopherS (TLS) server listening on {addrs}")
         else:
             # Short banner for standard Gopher server (port 70)
             print(f"  🌐 Gopher server (standard) listening on {addrs}")
 
-        logger.info(f"{'REFInet' if self.is_refinet else 'Gopher'} server started on {addrs} | PID: {short_pid}")
+        mode = "GopherS" if ssl_context else ("REFInet" if self.is_refinet else "Gopher")
+        logger.info(f"{mode} server started on {addrs} | PID: {short_pid}")
 
         async with server:
             await server.serve_forever()

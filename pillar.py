@@ -166,6 +166,24 @@ async def main(host: str, port: int, gopher_port: int, enable_mesh: bool,
     from integration.ipc_socket import start_ipc_server
     tasks.append(start_ipc_server(refinet_server, config))
 
+    # GopherS (TLS) server — encrypted Gopher on port 7073
+    try:
+        from crypto.tls import load_or_create_tls_context
+        tls_port = config.get("tls_port", 7073)
+        tls_ctx = load_or_create_tls_context(pid_data, hostname=config["hostname"])
+        tls_server = GopherServer(host=host_7070, port=tls_port,
+                                  hostname=config["hostname"],
+                                  is_refinet=True,
+                                  tor_manager=tor)
+        tasks.append(tls_server.start(ssl_context=tls_ctx))
+        logging.getLogger("refinet").info(
+            f"GopherS (TLS) server enabled on port {tls_port}"
+        )
+    except Exception as e:
+        logging.getLogger("refinet").warning(
+            f"GopherS (TLS) not available: {e} — continuing without TLS"
+        )
+
     # Standard Gopher server — public content on port 70
     if enable_gopher and gopher_port != port:
         gopher_server = GopherServer(host=host_70, port=gopher_port,
