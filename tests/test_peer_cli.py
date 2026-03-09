@@ -4,6 +4,7 @@ import json
 import pytest
 from pathlib import Path
 from mesh.discovery import load_bootstrap_peers
+from db.live_db import init_live_db
 
 
 class TestLoadBootstrapPeers:
@@ -19,7 +20,8 @@ class TestLoadBootstrapPeers:
         result = load_bootstrap_peers(peers_file)
         assert result == 0
 
-    def test_loads_valid_peers(self, tmp_path, memory_db):
+    def test_loads_valid_peers(self, tmp_path):
+        init_live_db()
         peers = [
             {
                 "hostname": "10.0.0.5",
@@ -60,7 +62,8 @@ class TestLoadBootstrapPeers:
         result = load_bootstrap_peers(peers_file)
         assert result == 0
 
-    def test_loads_multiple_peers(self, tmp_path, memory_db):
+    def test_loads_multiple_peers(self, tmp_path):
+        init_live_db()
         peers = [
             {"hostname": "10.0.0.1", "pid": "a" * 64, "port": 7070},
             {"hostname": "10.0.0.2", "pid": "b" * 64, "port": 7070},
@@ -71,7 +74,8 @@ class TestLoadBootstrapPeers:
         result = load_bootstrap_peers(peers_file)
         assert result == 3
 
-    def test_default_port_when_omitted(self, tmp_path, memory_db):
+    def test_default_port_when_omitted(self, tmp_path):
+        init_live_db()
         peers = [{"hostname": "10.0.0.1", "pid": "a" * 64}]
         peers_file = tmp_path / "peers.json"
         peers_file.write_text(json.dumps(peers))
