@@ -8,6 +8,8 @@ SSRF policy: Block loopback only (127.x, ::1). LAN IPs are allowed
 since REFInet is a LAN-first sovereign mesh.
 """
 
+from __future__ import annotations
+
 import asyncio
 import hashlib
 import re

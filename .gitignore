@@ -30,3 +30,14 @@ Thumbs.db
 # Environment
 .env
 *.env.local
+
+# Release artifacts
+gopherroot/download/*.tar.gz
+gopherroot/download/*.zip
+gopherroot/download/latest/*.tar.gz
+
+# MkDocs output
+site/
+
+# Python packaging
+*.whl

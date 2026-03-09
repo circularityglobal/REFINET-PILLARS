@@ -1,0 +1,48 @@
+site_name: REFInet Pillar Documentation
+site_url: https://docs.refinet.network
+repo_url: https://github.com/refinet/pillar
+repo_name: refinet/pillar
+
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: deep purple
+    accent: purple
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - Getting Started: GETTING-STARTED.md
+  - Architecture: PLATFORM_OVERVIEW.md
+  - Developer Guide: DEV_GUIDE.md
+  - Whitepaper: WHITEPAPER.md
+  - Reference:
+    - Wire Formats: docs/wire-formats.md
+    - Backup & Recovery: docs/backup.md
+  - Security: SECURITY.md
+  - Changelog: CHANGELOG.md
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - tables
+  - toc:
+      permalink: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/refinet/pillar

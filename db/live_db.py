@@ -9,6 +9,8 @@ Accounting calendar:
   - Day 365 = accounting balance day (reconciliation)
 """
 
+from __future__ import annotations
+
 import sqlite3
 import uuid
 import time

@@ -15,6 +15,21 @@ DB_DIR = HOME_DIR / "db"
 PID_FILE = HOME_DIR / "pid.json"
 PEERS_FILE = HOME_DIR / "peers.json"
 CONFIG_FILE = HOME_DIR / "config.json"
+PROFILES_DIR = HOME_DIR / "profiles"
+ACTIVE_PROFILE_FILE = HOME_DIR / "active_profile"
+TLS_DIR = HOME_DIR / "tls"
+VPN_DIR = HOME_DIR / "vpn"
+VAULT_DIR = HOME_DIR / "vault"
+IPC_SOCKET = HOME_DIR / "pillar.sock"
+PID_LOCKFILE = HOME_DIR / "pillar.pid"
+
+# ---------------------------------------------------------------------------
+# Encryption / KDF (Argon2id)
+# ---------------------------------------------------------------------------
+ARGON2_TIME_COST = 3
+ARGON2_MEMORY_COST = 65536  # 64 MB
+ARGON2_PARALLELISM = 4
+ARGON2_HASH_LEN = 32  # AES-256 key length
 
 # ---------------------------------------------------------------------------
 # Gopher Server
@@ -55,11 +70,34 @@ TOR_DEFAULTS = {
     "tor_control_port": 9051,
 }
 
+# ---------------------------------------------------------------------------
+# GopherS (TLS)
+# ---------------------------------------------------------------------------
+GOPHERS_PORT = 7073
+
+# ---------------------------------------------------------------------------
+# Privacy Proxy
+# ---------------------------------------------------------------------------
+PROXY_PORT = 7074
+
+# ---------------------------------------------------------------------------
+# WebSocket Bridge
+# ---------------------------------------------------------------------------
+WEBSOCKET_PORT = 7075
+WEBSOCKET_ALLOWED_ORIGINS = [
+    "chrome-extension://",     # Chrome/Chromium browser extensions
+    "moz-extension://",        # Firefox browser extensions
+    "http://localhost",        # Local development
+    "http://127.0.0.1",       # Local development
+]
+
 
 def ensure_dirs():
     """Create all required directories on first run."""
     HOME_DIR.mkdir(parents=True, exist_ok=True)
     DB_DIR.mkdir(parents=True, exist_ok=True)
+    PROFILES_DIR.mkdir(parents=True, exist_ok=True)
+    VAULT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def load_config() -> dict:

@@ -5,6 +5,8 @@ Manages authenticated sessions over Gopher protocol.
 Sessions are stored in SQLite and are write-only (revoked, never deleted).
 """
 
+from __future__ import annotations
+
 import secrets
 import io
 import base64
@@ -134,3 +136,56 @@ def revoke_session(session_id: str):
             (session_id,),
         )
         conn.commit()
+
+
+def establish_session_zkp(public_key_hex: str, proof: dict) -> dict:
+    """
+    Create a session from a verified ZKP proof.
+    Alternative to SIWE for privacy-preserving authentication.
+
+    Args:
+        public_key_hex: Ed25519 public key of the authenticated party
+        proof: Verified ZKP proof dict
+
+    Returns:
+        Session dict with session_id, expires_at
+    """
+    import hashlib
+    from datetime import timedelta
+
+    pid_data = get_or_create_pid()
+    session_id = secrets.token_hex(32)
+    now = datetime.now(timezone.utc)
+    expiry = now + timedelta(hours=SESSION_DURATION_HOURS)
+
+    # Derive a pseudo-address from public key for session storage
+    pseudo_address = "0x" + hashlib.sha256(
+        bytes.fromhex(public_key_hex)
+    ).hexdigest()[:40]
+
+    with _connect() as conn:
+        conn.execute(
+            """INSERT INTO siwe_sessions
+               (session_id, address, nonce, issued_at, expires_at, signature,
+                pid, revoked, created_at)
+               VALUES (?,?,?,?,?,?,?,0,?)""",
+            (
+                session_id,
+                pseudo_address,
+                proof.get("challenge", "zkp"),
+                now.isoformat(),
+                expiry.isoformat(),
+                proof.get("response", ""),
+                pid_data["pid"],
+                now.isoformat(),
+            ),
+        )
+        conn.commit()
+
+    return {
+        "session_id": session_id,
+        "address": pseudo_address,
+        "expires_at": expiry.isoformat(),
+        "pid": pid_data["pid"],
+        "auth_method": "zkp",
+    }

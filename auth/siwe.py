@@ -11,10 +11,9 @@ from datetime import datetime, timedelta, timezone
 try:
     from eth_account import Account
     from eth_account.messages import encode_defunct
+    _ETH_ACCOUNT_AVAILABLE = True
 except ImportError:
-    raise ImportError(
-        "SIWE auth requires eth-account. Install with: pip install eth-account"
-    )
+    _ETH_ACCOUNT_AVAILABLE = False
 
 SESSION_DURATION_HOURS = 24
 DOMAIN = "refinet://pillar"
@@ -32,6 +31,10 @@ def generate_challenge(address: str, pid: str,
         chain_id: EVM chain ID (default 1 = Ethereum mainnet).
                   Browser sends this via /auth/challenge address:chainId format.
     """
+    if not _ETH_ACCOUNT_AVAILABLE:
+        raise ImportError(
+            "SIWE auth requires eth-account. Install with: pip install eth-account"
+        )
     nonce = secrets.token_hex(16)
     now = datetime.now(timezone.utc)
     expiry = now + timedelta(hours=SESSION_DURATION_HOURS)
@@ -58,6 +61,10 @@ def verify_siwe_signature(message_text: str, signature: str,
     Returns True if recovered address matches expected_address (case-insensitive).
     Raises ValueError on malformed input.
     """
+    if not _ETH_ACCOUNT_AVAILABLE:
+        raise ImportError(
+            "SIWE auth requires eth-account. Install with: pip install eth-account"
+        )
     try:
         encoded = encode_defunct(text=message_text)
         recovered = Account.recover_message(encoded, signature=signature)

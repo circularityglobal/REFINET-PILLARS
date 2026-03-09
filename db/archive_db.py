@@ -7,6 +7,8 @@ Data flows: Live DB → (after 13 months) → Archive DB
 Archive is append-only and lightweight.
 """
 
+from __future__ import annotations
+
 import sqlite3
 import json
 from contextlib import contextmanager

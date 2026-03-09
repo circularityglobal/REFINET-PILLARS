@@ -1,0 +1,106 @@
+REFInet Pillar — Installation Guide
+====================================
+
+Version: 0.2.0
+Protocol: SGIS v14 (all phases complete)
+
+SYSTEM REQUIREMENTS
+-------------------
+- Python 3.9 or higher (3.11+ recommended)
+- 512MB RAM minimum
+- 10GB disk space
+- Network access (TCP ports 7070, 70, 7075)
+
+METHOD 1: pip (recommended)
+---------------------------
+pip3 install refinet-pillar[full]
+refinet-pillar run
+
+This installs the Pillar with all optional dependencies (wallet auth,
+WebSocket bridge, EVM gateway, Tor support, QR codes).
+
+For minimal install (core only):
+pip3 install refinet-pillar
+
+METHOD 2: Docker
+----------------
+docker run -d \
+  -p 7070:7070 -p 70:70 -p 7075:7075 \
+  -v ~/.refinet:/home/refinet/.refinet \
+  refinet/pillar:latest
+
+Or with docker-compose:
+git clone https://github.com/refinet/pillar.git
+cd pillar
+docker-compose up -d
+
+METHOD 3: From Source
+---------------------
+git clone https://github.com/refinet/pillar.git
+cd pillar
+pip3 install -r requirements.txt
+python3 pillar.py
+
+METHOD 4: systemd Service (Linux)
+----------------------------------
+git clone https://github.com/refinet/pillar.git
+cd pillar
+sudo bash deploy/install.sh
+
+This installs to /opt/refinet and creates a systemd service that
+starts automatically on boot.
+
+VERIFY INSTALLATION
+-------------------
+# Check if your Pillar is running
+python3 pillar.py --status
+
+# Connect via Gopher
+curl gopher://localhost:7070/
+
+# Check the health endpoint
+echo "/health" | nc localhost 7070
+
+WHAT HAPPENS ON FIRST RUN
+--------------------------
+1. A new Ed25519 keypair is generated
+2. Your Pillar ID (PID) is derived from the public key
+3. Keys are stored encrypted in ~/.refinet/pid.json
+4. SQLite databases are initialized
+5. Mesh discovery begins (UDP multicast on LAN)
+6. Gopher server starts on port 7070
+
+OPTIONAL DEPENDENCIES
+---------------------
+The Pillar logs which optional features are available at startup:
+
+  eth-account   — Wallet authentication (SIWE / EIP-4361)
+  websockets    — Browser extension bridge (port 7075)
+  web3          — EVM RPC gateway (5 chains)
+  stem          — Tor hidden services (.onion)
+  qrcode        — QR code generation for SIWE
+
+PORTS
+-----
+  7070 — REFInet Gopher (primary)
+  70   — Standard Gopher (RFC 1436 compatible)
+  7073 — GopherS (TLS encrypted)
+  7074 — Privacy proxy (SSRF-protected)
+  7075 — WebSocket bridge (browser extension)
+
+DOCUMENTATION
+-------------
+  Getting Started:     GETTING-STARTED.md
+  Platform Overview:   PLATFORM_OVERVIEW.md
+  Developer Guide:     DEV_GUIDE.md
+  Whitepaper:          WHITEPAPER.md
+  Security Policy:     SECURITY.md
+
+SUPPORT
+-------
+  GitHub Issues: https://github.com/refinet/pillar/issues
+  Gopherspace:   gopher://pillar.refinet.network:7070
+
+---
+REFInet Pillar v0.2.0
+Your identity. Your node. Your internet.

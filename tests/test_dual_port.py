@@ -131,7 +131,7 @@ class TestStandardGopherAllowed:
     async def test_root_menu(self, standard_gopher_server):
         _, port = standard_gopher_server
         resp = await _query(port, "")
-        assert "G O P H E R S P A C E" in resp
+        assert "REFINET Headquarters" in resp
         assert ".\r\n" in resp
 
     @pytest.mark.asyncio

@@ -1,0 +1,46 @@
+iREFInet Pillar — Download	fake	(NULL)	0
+i═══════════════════════════════════════════════════	fake	(NULL)	0
+i	fake	(NULL)	0
+iCurrent Version: 0.2.0	fake	(NULL)	0
+iProtocol: SGIS v14 (all phases complete)	fake	(NULL)	0
+iTests: 437 passing	fake	(NULL)	0
+i	fake	(NULL)	0
+i────────────────────────────────────────────────────	fake	(NULL)	0
+i  DOWNLOAD FILES	fake	(NULL)	0
+i────────────────────────────────────────────────────	fake	(NULL)	0
+i	fake	(NULL)	0
+0  Install Instructions	/download/INSTALL.txt	localhost	7070
+0  SHA-256 Checksums	/download/CHECKSUMS.txt	localhost	7070
+0  Requirements	/download/requirements.txt	localhost	7070
+i	fake	(NULL)	0
+i────────────────────────────────────────────────────	fake	(NULL)	0
+i  QUICK INSTALL — paste into terminal	fake	(NULL)	0
+i────────────────────────────────────────────────────	fake	(NULL)	0
+i	fake	(NULL)	0
+i  pip3 install refinet-pillar[full]	fake	(NULL)	0
+i  refinet-pillar run	fake	(NULL)	0
+i	fake	(NULL)	0
+i  — OR —	fake	(NULL)	0
+i	fake	(NULL)	0
+i  docker run -d -p 7070:7070 -p 7075:7075 \	fake	(NULL)	0
+i    -v ~/.refinet:/home/refinet/.refinet \	fake	(NULL)	0
+i    refinet/pillar:latest	fake	(NULL)	0
+i	fake	(NULL)	0
+i────────────────────────────────────────────────────	fake	(NULL)	0
+i  OTHER CHANNELS	fake	(NULL)	0
+i────────────────────────────────────────────────────	fake	(NULL)	0
+i	fake	(NULL)	0
+hGitHub Repository	URL:https://github.com/refinet/pillar	fake	70
+hDocker Hub	URL:https://hub.docker.com/r/refinet/pillar	fake	70
+hPyPI Package	URL:https://pypi.org/project/refinet-pillar	fake	70
+hDocumentation	URL:https://docs.refinet.network	fake	70
+i	fake	(NULL)	0
+i────────────────────────────────────────────────────	fake	(NULL)	0
+i  VERIFY YOUR DOWNLOAD	fake	(NULL)	0
+i────────────────────────────────────────────────────	fake	(NULL)	0
+i	fake	(NULL)	0
+i  sha256sum refinet-pillar-0.2.0.tar.gz	fake	(NULL)	0
+i  (compare with CHECKSUMS.txt above)	fake	(NULL)	0
+i	fake	(NULL)	0
+1  Back to Root Menu	/	localhost	7070
+.

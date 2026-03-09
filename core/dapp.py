@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 REFInet Pillar — DApp Definition Format Parser
 

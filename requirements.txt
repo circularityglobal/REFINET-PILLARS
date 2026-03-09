@@ -1,7 +1,15 @@
+# Core (required)
 cryptography>=41.0.0
+argon2-cffi>=23.1.0
+
+# Testing
 pytest>=7.0
 pytest-asyncio>=0.23.0
-eth-account>=0.10.0
-web3>=6.0.0
-qrcode[pil]>=7.4.2
-stem>=1.8.2
+
+# Optional — features degrade gracefully without these
+eth-account>=0.10.0          # SIWE wallet auth
+web3>=6.0.0                  # EVM RPC gateway
+qrcode[pil]>=7.4.2          # QR code generation
+stem>=1.8.2                  # Tor hidden services
+websockets>=12.0             # WebSocket bridge
+# python-pkcs11>=0.7.0      # HSM hardware keys

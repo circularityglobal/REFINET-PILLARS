@@ -201,6 +201,55 @@ CREATE TRIGGER IF NOT EXISTS no_delete_settlements
 BEGIN
     SELECT RAISE(ABORT, 'settlements is immutable — no deletes allowed');
 END;
+
+-- =========================================================================
+-- AUDIT LOG — blockchain-style hash chain (append-only)
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS audit_log (
+    seq          INTEGER PRIMARY KEY AUTOINCREMENT,
+    prev_hash    TEXT NOT NULL,             -- hash of previous entry (genesis = 64 zeros)
+    entry_hash   TEXT NOT NULL,             -- SHA-256(prev_hash + record_hash + table + op + timestamp)
+    table_name   TEXT NOT NULL,             -- source table (e.g. 'gopherholes', 'daily_tx')
+    operation    TEXT NOT NULL,             -- 'INSERT', 'UPDATE', 'DELETE'
+    record_key   TEXT NOT NULL,             -- primary key of the affected record
+    record_hash  TEXT NOT NULL,             -- SHA-256 of canonical JSON of the record
+    pid          TEXT NOT NULL,             -- PID that created this entry
+    signature    TEXT NOT NULL,             -- Ed25519 signature of entry_hash
+    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TRIGGER IF NOT EXISTS audit_log_no_update
+    BEFORE UPDATE ON audit_log
+BEGIN
+    SELECT RAISE(ABORT, 'audit_log is immutable — no updates allowed');
+END;
+
+CREATE TRIGGER IF NOT EXISTS audit_log_no_delete
+    BEFORE DELETE ON audit_log
+BEGIN
+    SELECT RAISE(ABORT, 'audit_log is immutable — no deletes allowed');
+END;
+
+CREATE INDEX IF NOT EXISTS idx_audit_log_table
+    ON audit_log (table_name);
+CREATE INDEX IF NOT EXISTS idx_audit_log_entry_hash
+    ON audit_log (entry_hash);
+
+-- =========================================================================
+-- VAULT ITEMS — metadata for encrypted personal file storage
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS vault_items (
+    item_id     TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    file_hash   TEXT NOT NULL,             -- SHA-256 of the encrypted file
+    size_bytes  INTEGER NOT NULL,
+    mime_type   TEXT DEFAULT 'application/octet-stream',
+    pid         TEXT NOT NULL,             -- owner PID
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_vault_items_pid
+    ON vault_items (pid);
 """
 
 ARCHIVE_SCHEMA = """

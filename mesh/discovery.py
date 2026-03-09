@@ -12,12 +12,15 @@ This is the foundation of the REFInet mesh:
 Think of it like Lightning Network channel discovery, but for Gopher.
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import socket
 import struct
 import logging
 import time
+from pathlib import Path
 
 from core.config import (
     MULTICAST_GROUP,
@@ -182,6 +185,52 @@ class PeerListener:
                 logger.info(f"Imported {imported} gopherhole(s) from new peer {peer_pid[:8]}")
         except Exception as e:
             logger.warning(f"Replication from new peer {peer_pid[:8]} failed: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Bootstrap / WAN Peer Loading
+# ---------------------------------------------------------------------------
+
+
+def load_bootstrap_peers(peers_file: Path) -> int:
+    """
+    Load peers from a JSON file into the database.
+
+    The file should contain a JSON array of peer objects:
+    [{"hostname": "10.0.0.5", "port": 7070, "pid": "abc...", "pillar_name": "Remote"}]
+
+    Returns count of peers loaded.
+    """
+    if not peers_file.exists():
+        return 0
+    try:
+        with open(peers_file) as f:
+            peers = json.load(f)
+        if not isinstance(peers, list):
+            logger.warning(f"Bootstrap peers file is not a JSON array: {peers_file}")
+            return 0
+        count = 0
+        for peer in peers:
+            hostname = peer.get("hostname")
+            pid = peer.get("pid")
+            if not hostname or not pid:
+                continue
+            upsert_peer(
+                pid=pid,
+                public_key=peer.get("public_key", ""),
+                hostname=hostname,
+                port=peer.get("port", 7070),
+                pillar_name=peer.get("pillar_name"),
+                protocol_version=peer.get("version"),
+            )
+            onion = peer.get("onion_address")
+            if onion:
+                update_peer_onion(pid, onion)
+            count += 1
+        return count
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning(f"Failed to load bootstrap peers: {e}")
+        return 0
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>REFInet Pillar</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div class="header-top">
+      <h1>REFInet Pillar</h1>
+      <span id="status-dot" class="dot offline" title="Disconnected"></span>
+    </div>
+    <div id="auth-section" class="auth-section">
+      <span id="auth-label" class="auth-label anonymous">Anonymous</span>
+      <button id="btn-auth" class="auth-btn">Sign In</button>
+    </div>
+    <div id="pid-badge" class="pid-badge hidden"></div>
+  </header>
+
+  <nav id="breadcrumb">
+    <a href="#" data-selector="/">root</a>
+  </nav>
+
+  <main id="content">
+    <p class="muted">Connecting to Pillar...</p>
+  </main>
+
+  <!-- Auth modal overlay -->
+  <div id="auth-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2>SIWE Authentication</h2>
+
+      <!-- Step: Wallet Discovery (default view) -->
+      <div id="auth-step-wallets" class="auth-step">
+        <label for="auth-chain">Network:</label>
+        <select id="auth-chain">
+          <option value="1">Ethereum (1)</option>
+          <option value="137">Polygon (137)</option>
+          <option value="42161">Arbitrum (42161)</option>
+          <option value="8453">Base (8453)</option>
+          <option value="11155111">Sepolia (11155111)</option>
+        </select>
+        <label>Select Wallet:</label>
+        <div id="wallet-list" class="wallet-list">
+          <p class="muted" id="wallet-detecting">Detecting wallets...</p>
+        </div>
+        <button id="btn-detect-wallets" class="btn-secondary" style="margin-top:6px">Refresh Wallets</button>
+        <button id="btn-manual-entry" class="btn-link">Manual Entry (paste signature)</button>
+      </div>
+
+      <!-- Step: Wallet Signing in Progress -->
+      <div id="auth-step-signing" class="auth-step hidden">
+        <div class="signing-status">
+          <div class="signing-spinner"></div>
+          <p id="signing-status-text">Waiting for wallet...</p>
+        </div>
+        <button id="btn-cancel-signing" class="btn-secondary">Cancel</button>
+      </div>
+
+      <!-- Step: Manual Address Entry (fallback) -->
+      <div id="auth-step-address" class="auth-step hidden">
+        <label for="auth-address">Ethereum Address:</label>
+        <input type="text" id="auth-address" placeholder="0x..." maxlength="42" spellcheck="false">
+        <button id="btn-get-challenge" class="auth-btn">Get Challenge</button>
+        <button id="btn-back-to-wallets" class="btn-link">Back to wallet selection</button>
+      </div>
+
+      <!-- Step: Manual Signature Paste (fallback) -->
+      <div id="auth-step-sign" class="auth-step hidden">
+        <label>Sign this message with your wallet:</label>
+        <textarea id="auth-challenge-msg" readonly rows="8"></textarea>
+        <label for="auth-signature">Paste Signature:</label>
+        <input type="text" id="auth-signature" placeholder="0x..." spellcheck="false">
+        <button id="btn-verify-sig" class="auth-btn">Verify &amp; Connect</button>
+      </div>
+
+      <!-- Step: Result -->
+      <div id="auth-step-result" class="auth-step hidden">
+        <p id="auth-result-msg"></p>
+      </div>
+
+      <p id="auth-error" class="error hidden"></p>
+      <button id="btn-auth-close" class="btn-secondary">Cancel</button>
+    </div>
+  </div>
+
+  <footer>
+    <button id="btn-back" disabled>&larr; Back</button>
+    <button id="btn-refresh">Refresh</button>
+    <button id="btn-connect">Connect</button>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

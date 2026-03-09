@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>REFInet Pillar — Sovereign Gopher Mesh Node</title>
+  <meta name="description" content="Your cryptographic identity. Your node. Your internet. Download REFInet Pillar and join the sovereign mesh.">
+  <style>
+    :root {
+      --bg: #0d0d0d;
+      --surface: #1a1a2e;
+      --border: #2a2a4a;
+      --text: #e0e0e0;
+      --text-dim: #888;
+      --accent: #7c3aed;
+      --accent-light: #a78bfa;
+      --green: #10b981;
+      --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: var(--mono);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+
+    /* Hero */
+    .hero {
+      text-align: center;
+      padding: 80px 0 60px;
+      border-bottom: 1px solid var(--border);
+    }
+    .hero h1 { font-size: 2.4rem; margin-bottom: 12px; color: #fff; }
+    .hero .tagline { font-size: 1.1rem; color: var(--accent-light); margin-bottom: 8px; }
+    .hero .sub { font-size: 0.9rem; color: var(--text-dim); }
+    .hero .version {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 4px 14px;
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      font-size: 0.8rem;
+      color: var(--accent-light);
+    }
+
+    /* Install tabs */
+    .install { padding: 60px 0; border-bottom: 1px solid var(--border); }
+    .install h2 { text-align: center; margin-bottom: 30px; font-size: 1.3rem; }
+    .tabs { display: flex; justify-content: center; gap: 0; margin-bottom: 0; }
+    .tab-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 10px 24px;
+      cursor: pointer;
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    .tab-btn:first-child { border-radius: 6px 0 0 0; }
+    .tab-btn:last-child { border-radius: 0 6px 0 0; }
+    .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .tab-content {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 6px 6px;
+      padding: 24px;
+    }
+    .tab-content.active { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+    .tab-content code {
+      display: block;
+      color: var(--green);
+      font-size: 0.9rem;
+      line-height: 1.8;
+      flex: 1;
+    }
+    .copy-btn {
+      flex-shrink: 0;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 4px 12px;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      cursor: pointer;
+      border-radius: 3px;
+      align-self: flex-start;
+    }
+    .copy-btn:hover { color: var(--accent-light); border-color: var(--accent); }
+
+    /* Features */
+    .features { padding: 60px 0; border-bottom: 1px solid var(--border); }
+    .features h2 { text-align: center; margin-bottom: 30px; font-size: 1.3rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 20px;
+    }
+    .card h3 { font-size: 0.95rem; color: var(--accent-light); margin-bottom: 8px; }
+    .card p { font-size: 0.8rem; color: var(--text-dim); }
+
+    /* Download */
+    .download { padding: 60px 0; border-bottom: 1px solid var(--border); }
+    .download h2 { text-align: center; margin-bottom: 30px; font-size: 1.3rem; }
+    .dl-table { width: 100%; border-collapse: collapse; }
+    .dl-table th, .dl-table td {
+      text-align: left;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+    .dl-table th { color: var(--text-dim); font-weight: normal; }
+    .dl-table a { color: var(--accent-light); text-decoration: none; }
+    .dl-table a:hover { text-decoration: underline; }
+
+    /* Gopher */
+    .gopher {
+      padding: 40px 0;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .gopher p { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 8px; }
+    .gopher code {
+      display: inline-block;
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      padding: 10px 20px;
+      border-radius: 4px;
+      color: var(--green);
+      font-size: 0.9rem;
+    }
+
+    /* Footer */
+    footer {
+      padding: 40px 0;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+    }
+    footer a { color: var(--accent-light); text-decoration: none; }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .hero h1 { font-size: 1.6rem; }
+      .grid { grid-template-columns: 1fr; }
+      .tabs { flex-direction: column; }
+      .tab-btn { border-radius: 0 !important; }
+      .tab-btn:first-child { border-radius: 6px 6px 0 0 !important; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Hero -->
+  <section class="hero">
+    <h1>REFInet Pillar</h1>
+    <p class="tagline">Sovereign Gopher mesh node.</p>
+    <p class="sub">Your cryptographic identity. Your node. Your internet.</p>
+    <span class="version">v0.2.0 &middot; 437 tests passing &middot; AGPLv3</span>
+  </section>
+
+  <!-- Install -->
+  <section class="install">
+    <h2>Install in 30 Seconds</h2>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showTab('pip')">pip</button>
+      <button class="tab-btn" onclick="showTab('docker')">Docker</button>
+      <button class="tab-btn" onclick="showTab('systemd')">systemd</button>
+      <button class="tab-btn" onclick="showTab('source')">Source</button>
+    </div>
+    <div id="tab-pip" class="tab-content active">
+      <button class="copy-btn" onclick="copyCode('pip')">copy</button>
+      <code>pip3 install refinet-pillar[full]<br>refinet-pillar run</code>
+    </div>
+    <div id="tab-docker" class="tab-content">
+      <button class="copy-btn" onclick="copyCode('docker')">copy</button>
+      <code>docker run -d \<br>&nbsp;&nbsp;-p 7070:7070 -p 70:70 -p 7075:7075 \<br>&nbsp;&nbsp;-v ~/.refinet:/home/refinet/.refinet \<br>&nbsp;&nbsp;refinet/pillar:latest</code>
+    </div>
+    <div id="tab-systemd" class="tab-content">
+      <button class="copy-btn" onclick="copyCode('systemd')">copy</button>
+      <code>curl -fsSL https://get.refinet.network/install.sh | bash</code>
+    </div>
+    <div id="tab-source" class="tab-content">
+      <button class="copy-btn" onclick="copyCode('source')">copy</button>
+      <code>git clone https://github.com/refinet/pillar.git<br>cd pillar<br>pip3 install -r requirements.txt<br>python3 pillar.py</code>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features">
+    <h2>What You Get</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Ed25519 Identity</h3>
+        <p>Unique Pillar ID derived from your keypair. Every response is cryptographically signed.</p>
+      </div>
+      <div class="card">
+        <h3>Mesh Networking</h3>
+        <p>Auto-discover peers via UDP multicast. Replicate registries. Join the global mesh.</p>
+      </div>
+      <div class="card">
+        <h3>Wallet Auth (SIWE)</h3>
+        <p>Sign-In with Ethereum. Browser extension with EIP-6963 multi-wallet support.</p>
+      </div>
+      <div class="card">
+        <h3>EVM Gateway</h3>
+        <p>Built-in JSON-RPC proxy for 5 chains with automatic failover.</p>
+      </div>
+      <div class="card">
+        <h3>Encrypted Vault</h3>
+        <p>AES-256-GCM encrypted storage. Shamir secret sharing for key recovery.</p>
+      </div>
+      <div class="card">
+        <h3>Tor Support</h3>
+        <p>Optional .onion hidden service. Access your Pillar anonymously.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Download Table -->
+  <section class="download">
+    <h2>Download</h2>
+    <table class="dl-table">
+      <tr><th>Channel</th><th>Location</th></tr>
+      <tr><td>GitHub</td><td><a href="https://github.com/refinet/pillar">github.com/refinet/pillar</a></td></tr>
+      <tr><td>PyPI</td><td><a href="https://pypi.org/project/refinet-pillar">pypi.org/project/refinet-pillar</a></td></tr>
+      <tr><td>Docker Hub</td><td><a href="https://hub.docker.com/r/refinet/pillar">hub.docker.com/r/refinet/pillar</a></td></tr>
+      <tr><td>Documentation</td><td><a href="https://docs.refinet.network">docs.refinet.network</a></td></tr>
+    </table>
+  </section>
+
+  <!-- Gopher -->
+  <section class="gopher">
+    <p>Also available natively via Gopher protocol:</p>
+    <code>gopher://pillar.refinet.network:7070/download</code>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <p>REFInet Pillar v0.2.0 &middot; <a href="https://github.com/refinet/pillar">GitHub</a> &middot; <a href="https://docs.refinet.network">Docs</a> &middot; AGPLv3</p>
+    <p style="margin-top: 8px;">Your keys. Your content. Your network.</p>
+  </footer>
+
+</div>
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+function copyCode(tab) {
+  const el = document.querySelector('#tab-' + tab + ' code');
+  const text = el.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('#tab-' + tab + ' .copy-btn');
+    btn.textContent = 'copied!';
+    setTimeout(() => btn.textContent = 'copy', 2000);
+  });
+}
+</script>
+
+</body>
+</html>

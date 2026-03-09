@@ -1,0 +1,25 @@
+services:
+  pillar:
+    build: .
+    ports:
+      - "7070:7070"    # REFInet (full features)
+      - "70:70"        # Standard Gopher
+      - "7073:7073"    # GopherS (TLS)
+      - "7074:7074"    # Privacy proxy
+      - "7075:7075"    # WebSocket bridge
+    volumes:
+      - pillar-data:/home/refinet/.refinet
+    restart: unless-stopped
+    init: true
+    mem_limit: 512m
+    environment:
+      - REFINET_HOST=0.0.0.0
+      - REFINET_PORT=7070
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  pillar-data:

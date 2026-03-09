@@ -1,0 +1,9 @@
+[
+  {
+    "host": "pillar.refinet.network",
+    "port": 7070,
+    "name": "REFInet Bootstrap Pillar",
+    "pid": "<canonical_pillar_pid>",
+    "note": "Official bootstrap node. Remove after connecting to other peers."
+  }
+]

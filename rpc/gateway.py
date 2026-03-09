@@ -7,6 +7,8 @@ Supports multiple chains, automatic failover, and request logging.
 Features degrade gracefully when offline (LAN-only mode).
 """
 
+from __future__ import annotations
+
 import logging
 import time
 

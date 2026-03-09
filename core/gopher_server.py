@@ -17,6 +17,8 @@ Protocol flow:
 This IS Gopherspace. Running this makes you part of it.
 """
 
+from __future__ import annotations
+
 import asyncio
 import base64
 import collections
@@ -36,6 +38,7 @@ from core.menu_builder import (
     build_dapps_menu,
     build_directory_menu,
     build_releases_menu,
+    build_download_menu,
     build_pillar_setup_menu,
     build_welcome_menu,
     build_auth_menu,
@@ -44,6 +47,10 @@ from core.menu_builder import (
     build_transactions_document,
     build_peers_document,
     build_ledger_document,
+    build_identity_menu,
+    build_vault_menu,
+    build_settings_menu,
+    build_sync_menu,
     info_line,
     menu_link,
     search_link,
@@ -135,7 +142,8 @@ def _accounting_date_dict() -> dict:
 REFINET_ROUTES = (
     "/auth", "/rpc", "/pid", "/transactions", "/peers",
     "/ledger", "/network", "/directory.json", "/status.json", "/search",
-    "/pillar/status",
+    "/pillar/status", "/identity", "/identity.json", "/vault", "/settings",
+    "/sync", "/health",
 )
 
 
@@ -223,6 +231,12 @@ class GopherServer:
 
             logger.info(f"[{addr[0]}:{addr[1]}] → selector: '{selector}'")
             self.request_count += 1
+
+            # Binary file serving — intercept before text pipeline
+            _BINARY_EXTENSIONS = ('.tar.gz', '.zip', '.gz', '.bz2', '.xz')
+            if selector.startswith("/download/") and any(selector.endswith(ext) for ext in _BINARY_EXTENSIONS):
+                await self._serve_binary(selector, writer)
+                return
 
             # Route the request
             response = await self._route(selector)
@@ -371,6 +385,12 @@ class GopherServer:
 
         elif selector == "/releases":
             return build_releases_menu(h, p)
+
+        elif selector == "/download":
+            return build_download_menu(h, p)
+
+        elif selector.startswith("/download/"):
+            return self._serve_static(selector)
 
         elif selector == "/pillar-setup":
             return build_pillar_setup_menu(h, p)
@@ -858,9 +878,140 @@ class GopherServer:
             lines.append(".\r\n")
             return "".join(lines)
 
+        # --- PRD Endpoints: /identity, /vault, /settings, /sync ---
+        elif selector == "/identity":
+            try:
+                from crypto.profiles import list_profiles, get_profile_info
+                profile_names = list_profiles()
+                profiles = [get_profile_info(n) for n in profile_names]
+            except Exception:
+                profiles = []
+            return build_identity_menu(self.pid_data, profiles, h, p)
+
+        elif selector == "/identity.json":
+            envelope = {
+                "schema_version": 1,
+                "pid": self.pid_data["pid"],
+                "public_key": self.pid_data["public_key"],
+                "key_store": self.pid_data.get("key_store", "software"),
+                "protocol": self.pid_data.get("protocol", "0.2.0"),
+            }
+            return json.dumps(envelope, indent=2) + "\r\n.\r\n"
+
+        elif selector == "/vault":
+            try:
+                from vault.storage import list_items, get_vault_stats
+                items = list_items(self.pid_data["pid"])
+                stats = get_vault_stats(self.pid_data["pid"])
+            except Exception:
+                items = []
+                stats = {"item_count": 0, "total_bytes": 0}
+            return build_vault_menu(items, stats, h, p)
+
+        elif selector == "/settings":
+            return build_settings_menu(self.config, h, p)
+
+        elif selector == "/sync":
+            peers = get_peers()
+            try:
+                from db.audit import get_chain_length
+                chain_length = get_chain_length()
+            except Exception:
+                chain_length = 0
+            return build_sync_menu(peers, chain_length, h, p)
+
+        elif selector == "/health":
+            return self._build_health_response(h, p)
+
+        elif selector.startswith("/auth/zkp-challenge"):
+            try:
+                from crypto.zkp import SchnorrZKP
+                context = selector.split("\t", 1)[1] if "\t" in selector else ""
+                lines = []
+                lines.append(info_line(""))
+                lines.append(info_line("  ZKP AUTHENTICATION"))
+                lines.append(separator())
+                lines.append(info_line(""))
+                lines.append(info_line("  Generate a Schnorr ZKP proof with your private key"))
+                lines.append(info_line(f"  Context: {context or '(none)'}"))
+                lines.append(info_line(""))
+                lines.append(info_line("  Submit proof via /auth/zkp-verify"))
+                lines.append(info_line(""))
+                lines.append(separator())
+                lines.append(menu_link("  ← Back to Auth", "/auth", h, p))
+                lines.append(".\r\n")
+                return "".join(lines)
+            except ImportError:
+                return self._error_response("ZKP module not available")
+
+        elif selector.startswith("/auth/zkp-verify"):
+            query = selector.split("\t", 1)[1] if "\t" in selector else ""
+            if not query:
+                return self._error_response("Submit ZKP proof as JSON")
+            try:
+                from crypto.zkp import SchnorrZKP
+                proof = json.loads(query)
+                pubkey = proof.get("public_key", "")
+                context = proof.get("context", "")
+                valid = SchnorrZKP.verify(proof, pubkey, context=context)
+                if valid:
+                    from auth.session import establish_session_zkp
+                    session = establish_session_zkp(pubkey, proof)
+                    lines = []
+                    lines.append(info_line(""))
+                    lines.append(info_line("  ZKP AUTHENTICATION SUCCESSFUL"))
+                    lines.append(separator())
+                    lines.append(info_line(f"  Session ID: {session['session_id']}"))
+                    lines.append(info_line(f"  Expires: {session['expires_at']}"))
+                    lines.append(info_line(""))
+                    lines.append(".\r\n")
+                    return "".join(lines)
+                else:
+                    return self._error_response("ZKP verification failed")
+            except (json.JSONDecodeError, ValueError) as e:
+                return self._error_response(f"ZKP error: {e}")
+            except ImportError:
+                return self._error_response("ZKP or auth module not available")
+
         # --- Static file serving from gopherroot ---
         else:
             return self._serve_static(selector)
+
+    async def _serve_binary(self, selector: str, writer: asyncio.StreamWriter):
+        """
+        Serve a binary file from gopherroot/download/ directly to the client.
+
+        This bypasses the text pipeline (signing, indexing) to avoid corrupting
+        binary data with UTF-8 encoding and signature blocks.
+        """
+        clean = selector.lstrip("/").replace("..", "")
+        target = (GOPHER_ROOT / clean).resolve()
+        download_root = (GOPHER_ROOT / "download").resolve()
+
+        # Security: only serve from gopherroot/download/
+        if not str(target).startswith(str(download_root)):
+            writer.write(b"3 Access denied\r\n.\r\n")
+            await writer.drain()
+            return
+
+        if not target.exists() or not target.is_file():
+            writer.write(b"3 File not found\r\n.\r\n")
+            await writer.drain()
+            return
+
+        # Stream in 8KB chunks to avoid loading entire file into memory
+        try:
+            file_size = target.stat().st_size
+            logger.info(f"Serving binary: {selector} ({file_size} bytes)")
+            with open(target, "rb") as f:
+                while True:
+                    chunk = f.read(8192)
+                    if not chunk:
+                        break
+                    writer.write(chunk)
+                    await writer.drain()
+        except Exception as e:
+            logger.error(f"Binary serve error for {selector}: {e}")
 
     def _serve_static(self, selector: str) -> str:
         """

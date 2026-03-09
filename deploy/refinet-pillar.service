@@ -1,0 +1,29 @@
+[Unit]
+Description=REFInet Pillar - Sovereign Gopher Mesh Node
+Documentation=https://github.com/circularityglobal/REFINET-PILLARS
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=refinet
+Group=refinet
+WorkingDirectory=/opt/refinet
+ExecStart=/usr/bin/python3 /opt/refinet/pillar.py
+Restart=on-failure
+RestartSec=10
+WatchdogSec=300
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/refinet/.refinet
+PrivateTmp=yes
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target

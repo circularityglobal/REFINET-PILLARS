@@ -1,127 +1,168 @@
-# REFInet Pillar — Sovereign Gopher Mesh Node
+# REFInet Pillar
 
-> **Protocol v0.2.0** — Phase 1 & Phase 2 complete (incl. Tor hidden service integration)
+> Sovereign Gopher mesh node. Your cryptographic identity. Your node. Your internet.
+
+**Protocol v0.2.0** | **437 tests passing** | **AGPLv3 License** | **Python 3.9+**
+
+---
+
+## Install in 30 Seconds
+
+| Method | Command |
+|--------|---------|
+| **pip** | `pip3 install refinet-pillar[full] && refinet-pillar run` |
+| **Docker** | `docker-compose up -d` |
+| **systemd** | `sudo bash deploy/install.sh` |
+| **Gopher** | `curl gopher://pillar.refinet.network:7070/1/download` |
+| **Source** | `pip3 install -r requirements.txt && python3 pillar.py` |
+
+---
 
 ## What Is This?
 
-REFInet Pillar turns any computer (old or new) into a **sovereign mesh node** in Gopherspace.
+REFInet Pillar turns any computer into a **sovereign mesh node** in Gopherspace. There is no central server. No accounts to create on someone else's platform. Your Pillar is your identity, your node, and your piece of the network.
 
 Each Pillar is:
-- A **Gopher server** serving hierarchical menus and content on TCP port 7070 (+ optional port 70)
-- A **local ledger** tracking all DApp transactions in SQLite (13-month live + yearly archive)
-- A **cryptographic identity** (Pillar ID / PID) for signing content and verifying peers
+- A **Gopher server** serving signed content on TCP port 7070 (+ optional port 70)
+- A **cryptographic identity** (Pillar ID / PID) built on Ed25519
 - A **mesh participant** discovering neighbors via UDP multicast and replicating registries
-- A **Tor hidden service** (optional) for anonymous .onion access without exposing your IP
-- A **gateway** to enterprise LAM + blockchain SDKs (via CIFI staking → REFI issuance)
+- A **local ledger** tracking all transactions in SQLite (13-month live + yearly archive)
+- A **browser bridge** connecting wallets via SIWE (EIP-4361) and WebSocket
+- A **gateway** to 5 EVM chains via built-in RPC proxy
+- A **Tor hidden service** (optional) for anonymous .onion access
 
-## Quick Start
-
-```bash
-# 1. Clone the repo
-git clone https://github.com/your-org/refinet-pillar.git
-cd refinet-pillar
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Launch your Pillar
-python3 pillar.py
-
-# Your node is now live in Gopherspace on port 7070
-# PID generated and stored in ~/.refinet/pid.json
-
-# Optional: Enable Tor hidden service (set tor_enabled in config)
-# Edit ~/.refinet/config.json → "tor_enabled": true
-python3 pillar.py
-
-# Check status of a running Pillar
-python3 pillar.py --status
-```
+---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│               REFInet Pillar Node                │
-├──────────┬──────────┬───────────┬───────────────┤
-│  Gopher  │  SQLite  │   PID &   │  Mesh + SIWE  │
-│  Server  │  Ledger  │  Crypto   │  Discovery    │
-│TCP:7070  │ Live+Arc │ Ed25519   │  Multicast    │
-├──────────┴──────────┴───────────┴───────────────┤
-│       DApp Runtime + EVM RPC Gateway             │
-├──────────────────────────────────────────────────┤
-│         Token Layer (CIFI → REFI) [Phase 3]      │
-├──────────────────────────────────────────────────┤
-│     Tor Hidden Service (.onion) [optional]        │
-├──────────────────────────────────────────────────┤
-│  Transport: Wi-Fi Mesh / LAN / Internet / Tor    │
-└──────────────────────────────────────────────────┘
++--------------------------------------------------+
+|               REFInet Pillar Node                 |
++-----------+-----------+------------+--------------+
+|  Gopher   |  SQLite   |   PID &    |  Mesh + SIWE |
+|  Server   |  Ledger   |  Crypto    |  Discovery   |
+| TCP:7070  | Live+Arc  | Ed25519    |  Multicast   |
++-----------+-----------+------------+--------------+
+|       DApp Runtime + EVM RPC Gateway (5 chains)   |
++---------------------------------------------------+
+|     Browser Extension v0.4.0 (WebSocket Bridge)   |
++---------------------------------------------------+
+|  Encrypted Vault | ZKP Auth | Shamir Recovery     |
++---------------------------------------------------+
+|  Transport: Wi-Fi Mesh / LAN / Internet / Tor     |
++---------------------------------------------------+
+
+Ports: 7070 (REFInet) | 70 (Gopher) | 7073 (TLS) | 7074 (Proxy) | 7075 (WebSocket)
 ```
 
-## Connecting via Gopher Client
+---
+
+## Download
+
+| Channel | Location |
+|---------|----------|
+| **GitHub** | [github.com/refinet/pillar](https://github.com/refinet/pillar) |
+| **PyPI** | `pip install refinet-pillar` |
+| **Docker Hub** | `docker pull refinet/pillar:latest` |
+| **Gopherspace** | `gopher://pillar.refinet.network:7070/download` |
+
+---
+
+## Docker Quick Start
 
 ```bash
-# Using curl
-curl gopher://localhost:7070/
-
-# Using lynx
-lynx gopher://localhost:7070
-
-# Using any Gopher client
-# Host: localhost  Port: 7070  Selector: (empty)
+docker run -d \
+  -p 7070:7070 -p 70:70 -p 7075:7075 \
+  -v ~/.refinet:/home/refinet/.refinet \
+  refinet/pillar:latest
 ```
+
+Or with docker-compose:
+
+```bash
+git clone https://github.com/refinet/pillar.git
+cd pillar
+docker-compose up -d
+```
+
+---
+
+## Browser Extension
+
+The REFInet Pillar Bridge (v0.4.0) connects your browser to your local Pillar:
+
+1. Open `chrome://extensions` and enable Developer Mode
+2. Click "Load unpacked" and select the `browser-extension/` directory
+3. Click the REFInet icon and authenticate with your Ethereum wallet
+
+Features: SIWE authentication, EIP-6963 multi-wallet support, `window.refinet` API for DApps.
+
+---
+
+## CLI Reference
+
+```bash
+pillar.py run [--host HOST] [--port PORT] [--no-mesh] [--no-gopher] [-v]
+pillar.py --status
+pillar.py hole create|list|verify
+pillar.py peer add|list|remove
+pillar.py profile create|list|switch|info|delete
+pillar.py recovery split|restore
+```
+
+---
+
+## Documentation
+
+- [Getting Started](GETTING-STARTED.md) — Full setup guide with all options
+- [Platform Overview](PLATFORM_OVERVIEW.md) — Architecture deep dive
+- [Developer Guide](DEV_GUIDE.md) — Module reference and API docs
+- [Whitepaper](WHITEPAPER.md) — Protocol specification
+- [Security Policy](SECURITY.md) — Vulnerability reporting
+- [Changelog](CHANGELOG.md) — Release history
+
+---
 
 ## Project Structure
 
 ```
 refinet-pillar/
-├── pillar.py              # Main entry point, CLI, async launcher, Tor lifecycle
-├── requirements.txt       # Python dependencies
-├── core/
-│   ├── gopher_server.py   # Gopher protocol server (dual-port, rate limiting)
-│   ├── menu_builder.py    # Dynamic gophermap generation (Tor-aware)
-│   ├── config.py          # Pillar configuration and Tor defaults
-│   ├── tor_manager.py     # Tor hidden service management via stem
-│   ├── dapp.py            # .dapp file parser
-│   ├── gopherhole.py      # Gopherhole creation & verification
-│   ├── gopher_client.py   # Async Gopher client (SSRF-protected)
-│   └── gophermap_parser.py # RFC 1436 menu parser
-├── db/
-│   ├── live_db.py         # 13-month live transaction DB + peer onion tracking
-│   ├── archive_db.py      # Yearly compressed archive DB
-│   └── schema.py          # SQLite schemas (7 live tables + 3 archive)
-├── crypto/
-│   ├── pid.py             # Pillar ID generation & management
-│   └── signing.py         # Content signing & verification
-├── mesh/
-│   ├── discovery.py       # Peer discovery via multicast + health monitoring
-│   └── replication.py     # Gopherhole registry sync between peers
-├── auth/
-│   ├── siwe.py            # EIP-4361 SIWE challenge/verify
-│   └── session.py         # Session token management
-├── rpc/
-│   ├── gateway.py         # EVM JSON-RPC proxy (5 chains)
-│   ├── chains.py          # Default chain configurations
-│   └── config.py          # User-configurable RPC endpoints
-├── cli/
-│   └── hole.py            # Gopherhole CLI subcommands
-├── docs/
-│   └── backup.md          # Backup and recovery guide
-├── tests/                 # 236 tests across 16 modules
-└── gopherroot/            # Served content directory
-    ├── gophermap          # Root menu
-    ├── dapps/             # DApp definitions
-    └── holes/             # Gopherhole content
+├── pillar.py                # Entry point, async launcher, CLI
+├── requirements.txt         # Python dependencies
+├── pyproject.toml           # PyPI packaging
+├── Dockerfile               # Container image
+├── docker-compose.yml       # One-command deployment
+├── core/                    # Gopher server, menu builder, config
+├── crypto/                  # Ed25519 PID, signing, ZKP
+├── db/                      # SQLite ledger (live + archive)
+├── auth/                    # SIWE, sessions, encrypted vault
+├── mesh/                    # Peer discovery, replication
+├── rpc/                     # EVM JSON-RPC gateway (5 chains)
+├── cli/                     # CLI subcommands
+├── proxy/                   # Privacy proxy (SSRF-protected)
+├── integration/             # Cross-module integration
+├── tests/                   # 437 tests across 29 modules
+├── browser-extension/       # Chrome extension v0.4.0
+├── gopherroot/              # Served Gopher content
+├── deploy/                  # systemd service + install script
+└── docs/                    # Wire formats, backup guide
 ```
 
-## Roadmap
+---
 
-- **Phase 1** ✅ Gopher server + SQLite + PID + DApp system + content indexing
-- **Phase 2** ✅ Mesh discovery, peer replication, SIWE auth, EVM RPC, Tor hidden service, dual-port, CLI
-- **Phase 3** CIFI staking → REFI issuance + license activation
-- **Phase 4** DApp runtime + LAM integration
-- **Phase 5** Lightning-network-style Gopher propagation
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Run the test suite: `python -m pytest tests/ -v`
+4. Submit a pull request
+
+See [SECURITY.md](SECURITY.md) for vulnerability reporting.
+
+---
 
 ## License
 
-Open source. Run a Pillar. Join the mesh.
+AGPLv3 — See [LICENSE](LICENSE) for full text.
+
+Run a Pillar. Join the mesh.

@@ -18,9 +18,13 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-import stem
-import stem.process
-import stem.control
+try:
+    import stem
+    import stem.process
+    import stem.control
+    _STEM_AVAILABLE = True
+except ImportError:
+    _STEM_AVAILABLE = False
 
 from core.config import TOR_DATA_DIR
 
@@ -44,7 +48,7 @@ class TorManager:
         self.socks_port = config.get("tor_socks_port", 9050)
         self.control_port = config.get("tor_control_port", 9051)
         self._tor_process = None
-        self._controller: Optional[stem.control.Controller] = None
+        self._controller = None  # Optional[stem.control.Controller]
         self._onion_address: Optional[str] = None
         self._hs_privkey: Optional[str] = None
         self._restart_count = 0
@@ -59,6 +63,13 @@ class TorManager:
         """
         if not self.enabled:
             logger.info("[TOR] Tor mode disabled in config. Running direct TCP.")
+            return False
+
+        if not _STEM_AVAILABLE:
+            logger.warning(
+                "[TOR] stem library not installed. "
+                "Install with: pip install stem"
+            )
             return False
 
         if not shutil.which("tor"):

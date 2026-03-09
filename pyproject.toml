@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "refinet-pillar"
+version = "0.2.0"
+description = "Sovereign Gopher mesh node with Ed25519 identity and encrypted mesh networking"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.9"
+keywords = ["gopher", "decentralized", "sovereign", "mesh", "p2p", "blockchain", "ed25519"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: No Input/Output (Daemon)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet",
+    "Topic :: Security :: Cryptography",
+    "Topic :: System :: Networking",
+]
+dependencies = [
+    "cryptography>=41.0.0",
+    "argon2-cffi>=23.1.0",
+]
+
+[project.optional-dependencies]
+full = [
+    "eth-account>=0.10.0",
+    "websockets>=12.0",
+    "web3>=6.0.0",
+    "stem>=1.8.2",
+    "qrcode[pil]>=7.4.2",
+]
+test = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+[project.scripts]
+refinet-pillar = "pillar:main"
+
+[project.urls]
+Homepage = "https://refinet.network"
+Repository = "https://github.com/refinet/pillar"
+Documentation = "https://docs.refinet.network"
+Gopherspace = "gopher://pillar.refinet.network:7070"
+Issues = "https://github.com/refinet/pillar/issues"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.setuptools.packages.find]
+include = ["core*", "crypto*", "db*", "auth*", "mesh*", "rpc*", "cli*", "proxy*", "integration*"]

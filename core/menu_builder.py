@@ -14,6 +14,8 @@ Gopher item types used:
   h = HTML link (for bridging to traditional internet)
 """
 
+from __future__ import annotations
+
 from datetime import datetime
 from pathlib import Path
 
@@ -42,6 +44,11 @@ def text_link(display: str, selector: str, host: str, port: int) -> str:
 def html_link(display: str, url: str, host: str, port: int) -> str:
     """HTML link (type 'h') — bridges to traditional internet."""
     return f"h{display}\tURL:{url}\t{host}\t{port}\r\n"
+
+
+def binary_link(display: str, selector: str, host: str, port: int) -> str:
+    """Binary file link (type '9')."""
+    return f"9{display}\t{selector}\t{host}\t{port}\r\n"
 
 
 def search_link(display: str, selector: str, host: str, port: int) -> str:
@@ -117,11 +124,28 @@ def build_root_menu(pid_data: dict, hostname: str, port: int,
 
     lines.append(info_line(""))
     lines.append(separator())
+    lines.append(info_line("  IDENTITY & VAULT"))
+    lines.append(separator())
+    lines.append(info_line(""))
+    lines.append(menu_link("  Identity Management", "/identity", hostname, port))
+    lines.append(menu_link("  Encrypted Vault", "/vault", hostname, port))
+    lines.append(menu_link("  Settings", "/settings", hostname, port))
+
+    lines.append(info_line(""))
+    lines.append(separator())
     lines.append(info_line("  MESH"))
     lines.append(separator())
     lines.append(info_line(""))
     lines.append(text_link("  Known Peers", "/peers", hostname, port))
     lines.append(text_link("  Ledger Status", "/ledger", hostname, port))
+    lines.append(menu_link("  Sync Status", "/sync", hostname, port))
+
+    lines.append(info_line(""))
+    lines.append(separator())
+    lines.append(info_line("  DOWNLOADS"))
+    lines.append(separator())
+    lines.append(info_line(""))
+    lines.append(menu_link("  Pillar Software Downloads", "/download", hostname, port))
 
     lines.append(info_line(""))
     lines.append(separator())
@@ -228,6 +252,7 @@ def _build_public_homepage(pid_data: dict, hostname: str, port: int,
     lines.append(info_line("DOWNLOAD & RUN YOUR OWN PILLAR"))
     lines.append(info_line(""))
     lines.append(menu_link("  Download REFInet Browser", "/releases", hostname, port))
+    lines.append(menu_link("  Download Pillar Software", "/download", hostname, port))
     lines.append(menu_link("  Pillar Setup Documentation", "/pillar-setup", hostname, port))
     lines.append(html_link("  Source Code on GitHub", "https://github.com/refinet", hostname, port))
     lines.append(info_line(""))
@@ -240,7 +265,7 @@ def _build_public_homepage(pid_data: dict, hostname: str, port: int,
     lines.append(info_line(f"  Full REFInet features on port {refinet_port}: gopher://{hostname}:{refinet_port}/"))
     lines.append(info_line(""))
     lines.append(info_line(f"gopher.refinet.app | Port {port}"))
-    lines.append(info_line(f"REFInet Contributors \u2014 MIT License \u2014 {year}"))
+    lines.append(info_line(f"REFInet Contributors \u2014 AGPLv3 License \u2014 {year}"))
     lines.append(info_line(""))
 
     lines.append(".\r\n")
@@ -279,6 +304,68 @@ def build_releases_menu(hostname: str, port: int) -> str:
     lines.append(menu_link("  Pillar Setup Guide", "/pillar-setup", hostname, port))
     lines.append(html_link("  Source Code on GitHub", "https://github.com/refinet", hostname, port))
     lines.append(info_line(""))
+    lines.append(separator())
+    lines.append(menu_link("  \u2190 Back to Root", "/", hostname, port))
+    lines.append(info_line(""))
+    lines.append(".\r\n")
+    return "".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Download Page
+# ---------------------------------------------------------------------------
+def build_download_menu(hostname: str, port: int) -> str:
+    """Pillar software download page served via Gopher."""
+    lines = []
+    lines.append(info_line(""))
+    lines.append(info_line("REFINET PILLAR \u2014 DOWNLOAD"))
+    lines.append(separator())
+    lines.append(info_line(""))
+    lines.append(info_line(f"  Current Version: {PROTOCOL_VERSION}"))
+    lines.append(info_line("  Protocol: SGIS v14 (all phases complete)"))
+    lines.append(info_line("  Tests: 437 passing"))
+    lines.append(info_line(""))
+
+    lines.append(separator())
+    lines.append(info_line("  DOWNLOAD FILES"))
+    lines.append(separator())
+    lines.append(info_line(""))
+    lines.append(text_link("  Install Instructions", "/download/INSTALL.txt", hostname, port))
+    lines.append(text_link("  SHA-256 Checksums", "/download/CHECKSUMS.txt", hostname, port))
+    lines.append(info_line(""))
+
+    lines.append(separator())
+    lines.append(info_line("  QUICK INSTALL \u2014 paste into terminal"))
+    lines.append(separator())
+    lines.append(info_line(""))
+    lines.append(info_line("  pip3 install refinet-pillar[full]"))
+    lines.append(info_line("  refinet-pillar run"))
+    lines.append(info_line(""))
+    lines.append(info_line("  \u2014 OR \u2014"))
+    lines.append(info_line(""))
+    lines.append(info_line("  docker run -d -p 7070:7070 -p 7075:7075 \\"))
+    lines.append(info_line("    -v ~/.refinet:/home/refinet/.refinet \\"))
+    lines.append(info_line("    refinet/pillar:latest"))
+    lines.append(info_line(""))
+
+    lines.append(separator())
+    lines.append(info_line("  OTHER CHANNELS"))
+    lines.append(separator())
+    lines.append(info_line(""))
+    lines.append(html_link("  GitHub Repository", "https://github.com/refinet/pillar", hostname, port))
+    lines.append(html_link("  Docker Hub", "https://hub.docker.com/r/refinet/pillar", hostname, port))
+    lines.append(html_link("  PyPI Package", "https://pypi.org/project/refinet-pillar", hostname, port))
+    lines.append(html_link("  Documentation", "https://docs.refinet.network", hostname, port))
+    lines.append(info_line(""))
+
+    lines.append(separator())
+    lines.append(info_line("  VERIFY YOUR DOWNLOAD"))
+    lines.append(separator())
+    lines.append(info_line(""))
+    lines.append(info_line(f"  sha256sum refinet-pillar-v{PROTOCOL_VERSION}.tar.gz"))
+    lines.append(info_line("  (compare with CHECKSUMS.txt above)"))
+    lines.append(info_line(""))
+
     lines.append(separator())
     lines.append(menu_link("  \u2190 Back to Root", "/", hostname, port))
     lines.append(info_line(""))
@@ -724,7 +811,163 @@ def build_rpc_menu(chain_statuses: dict, hostname: str, port: int,
         lines.append(info_line(""))
 
     lines.append(separator())
-    lines.append(menu_link("  \u2190 Back to Root", "/", hostname, port))
+    lines.append(menu_link("  ← Back to Root", "/", hostname, port))
+    lines.append(info_line(""))
+    lines.append(".\r\n")
+    return "".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Identity Management Menu (PRD: /identity)
+# ---------------------------------------------------------------------------
+def build_identity_menu(pid_data: dict, profiles: list[dict],
+                        hostname: str, port: int) -> str:
+    """Identity management — view profiles, current PID, switch profiles."""
+    lines = []
+    lines.append(info_line(""))
+    lines.append(info_line("  IDENTITY MANAGEMENT"))
+    lines.append(separator())
+    lines.append(info_line(""))
+    lines.append(info_line(f"  Active PID: {pid_data['pid']}"))
+    lines.append(info_line(f"  Public Key: {pid_data['public_key'][:32]}..."))
+    lines.append(info_line(f"  Key Store: {pid_data.get('key_store', 'software')}"))
+
+    priv = pid_data.get("private_key")
+    encrypted = isinstance(priv, dict)
+    lines.append(info_line(f"  Encrypted: {'yes' if encrypted else 'no'}"))
+    lines.append(info_line(""))
+
+    if profiles:
+        lines.append(separator())
+        lines.append(info_line("  PROFILES"))
+        lines.append(info_line(""))
+        for p in profiles:
+            marker = " (active)" if p.get("active") else ""
+            enc = " [encrypted]" if p.get("encrypted") else ""
+            pid_short = p.get("pid", "?")[:16]
+            lines.append(info_line(f"  {p['name']}{marker}{enc} — PID: {pid_short}..."))
+        lines.append(info_line(""))
+        lines.append(info_line("  Manage profiles: pillar.py profile {create|list|switch|delete}"))
+
+    lines.append(info_line(""))
+    lines.append(separator())
+    lines.append(menu_link("  ← Back to Root", "/", hostname, port))
+    lines.append(info_line(""))
+    lines.append(".\r\n")
+    return "".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Vault Menu (PRD: /vault)
+# ---------------------------------------------------------------------------
+def build_vault_menu(items: list[dict], stats: dict,
+                     hostname: str, port: int) -> str:
+    """Encrypted vault — list stored items, show stats."""
+    lines = []
+    lines.append(info_line(""))
+    lines.append(info_line("  ENCRYPTED VAULT"))
+    lines.append(separator())
+    lines.append(info_line(""))
+    lines.append(info_line(f"  Items: {stats.get('item_count', 0)}"))
+    lines.append(info_line(f"  Total size: {stats.get('total_bytes', 0)} bytes"))
+    lines.append(info_line(""))
+
+    if items:
+        for item in items:
+            size = item.get("size_bytes", 0)
+            created = item.get("created_at", "?")
+            lines.append(info_line(f"  [{item.get('mime_type', '?')}] {item['name']} "
+                                   f"({size} bytes) — {created}"))
+        lines.append(info_line(""))
+    else:
+        lines.append(info_line("  No items stored."))
+        lines.append(info_line("  Use the vault API to store encrypted files."))
+        lines.append(info_line(""))
+
+    lines.append(info_line("  Vault operations require SIWE authentication."))
+    lines.append(info_line(""))
+    lines.append(separator())
+    lines.append(menu_link("  ← Back to Root", "/", hostname, port))
+    lines.append(info_line(""))
+    lines.append(".\r\n")
+    return "".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Settings Menu (PRD: /settings)
+# ---------------------------------------------------------------------------
+def build_settings_menu(config: dict, hostname: str, port: int) -> str:
+    """Server settings — display configurable parameters."""
+    lines = []
+    lines.append(info_line(""))
+    lines.append(info_line("  PILLAR SETTINGS"))
+    lines.append(separator())
+    lines.append(info_line(""))
+
+    lines.append(info_line("  SERVER"))
+    lines.append(info_line(f"    Hostname: {config.get('hostname', 'localhost')}"))
+    lines.append(info_line(f"    Port: {config.get('port', 7070)}"))
+    lines.append(info_line(f"    Pillar Name: {config.get('pillar_name', 'REFInet Pillar')}"))
+    lines.append(info_line(""))
+
+    lines.append(info_line("  SECURITY"))
+    lines.append(info_line(f"    TLS: {'enabled' if config.get('tls_enabled') else 'disabled'}"))
+    lines.append(info_line(f"    Tor: {'enabled' if config.get('tor_enabled') else 'disabled'}"))
+    lines.append(info_line(f"    VPN: {'enabled' if config.get('vpn_enabled') else 'disabled'}"))
+    lines.append(info_line(f"    Proxy: {'enabled' if config.get('proxy_enabled') else 'disabled'}"))
+    lines.append(info_line(""))
+
+    lines.append(info_line("  NETWORK"))
+    lines.append(info_line(f"    Multicast Group: 224.0.70.70:7071"))
+    lines.append(info_line(f"    Discovery Interval: 30s"))
+    lines.append(info_line(f"    Replication Interval: 5m"))
+    lines.append(info_line(""))
+
+    lines.append(info_line("  Edit settings: ~/.refinet/config.json"))
+    lines.append(info_line(""))
+    lines.append(separator())
+    lines.append(menu_link("  ← Back to Root", "/", hostname, port))
+    lines.append(info_line(""))
+    lines.append(".\r\n")
+    return "".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Sync Status Menu (PRD: /sync)
+# ---------------------------------------------------------------------------
+def build_sync_menu(peers: list[dict], chain_length: int,
+                    hostname: str, port: int) -> str:
+    """P2P synchronization status — replication health, peer sync info."""
+    lines = []
+    lines.append(info_line(""))
+    lines.append(info_line("  SYNCHRONIZATION STATUS"))
+    lines.append(separator())
+    lines.append(info_line(""))
+    lines.append(info_line(f"  Audit chain length: {chain_length} entries"))
+    lines.append(info_line(""))
+
+    online_peers = [p for p in peers if p.get("status") == "online"]
+    lines.append(info_line(f"  Peers syncing: {len(online_peers)} / {len(peers)}"))
+    lines.append(info_line(""))
+
+    if online_peers:
+        lines.append(info_line("  ACTIVE SYNC PEERS"))
+        lines.append(info_line(""))
+        for p in online_peers[:10]:
+            name = p.get("pillar_name", "Unknown")
+            host = p.get("hostname", "?")
+            pport = p.get("port", 7070)
+            latency = p.get("latency_ms")
+            lat = f"{latency}ms" if latency is not None else "—"
+            lines.append(info_line(f"    {name} @ {host}:{pport} ({lat})"))
+        lines.append(info_line(""))
+
+    lines.append(info_line("  Sync protocol: Gopherhole registry replication"))
+    lines.append(info_line("  Interval: every 5 minutes"))
+    lines.append(info_line("  Encryption: Ed25519 signature verification"))
+    lines.append(info_line(""))
+    lines.append(separator())
+    lines.append(menu_link("  ← Back to Root", "/", hostname, port))
     lines.append(info_line(""))
     lines.append(".\r\n")
     return "".join(lines)
