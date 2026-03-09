@@ -3,19 +3,6 @@
 All notable changes to REFInet Pillar are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.4.0] — 2026-03-09
-
-### Changed (Website)
-- All navbar links now open pop-up modals instead of scrolling to sections
-- Unified all 6 documentation pages into a single Docs modal with document switcher sidebar and per-document TOC
-- Replaced separate Whitepaper and Getting Started modals with the unified Docs modal
-- Added "What Is It" modal (6-pillar feature grid) accessible from navbar
-- Added "Community" modal (GitHub, Discord, Gopherspace cards) accessible from navbar
-- Footer links converted to modal triggers matching navbar behavior
-- Removed landing page "What Is It" section (content moved to modal)
-- Removed SPA doc-viewer page route system in favor of modal-only navigation
-- All modals share uniform branded layout (consistent header, backdrop, close button, animation)
-
 ## [0.3.0] — 2026-03-09
 
 ### Fixed (Audit Remediation)

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="cyan-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00F0FF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00CC99;stop-opacity:0.8" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Three leaf petals forming triskelion - matching the REFInet brand mark -->
+  <g transform="translate(100,100)" filter="url(#glow)">
+    <!-- Top-right petal -->
+    <path d="M 5,-15 C 25,-70 70,-65 55,-10 C 45,10 20,5 5,-15 Z"
+          fill="url(#cyan-grad)" opacity="0.9"/>
+    <!-- Top-left petal -->
+    <path d="M -5,-15 C -60,-55 -75,-10 -40,20 C -20,30 -10,5 -5,-15 Z"
+          fill="url(#cyan-grad)" opacity="0.85"/>
+    <!-- Bottom petal -->
+    <path d="M 0,20 C -20,70 30,75 45,35 C 50,15 15,10 0,20 Z"
+          fill="url(#cyan-grad)" opacity="0.8"/>
+  </g>
+</svg>
