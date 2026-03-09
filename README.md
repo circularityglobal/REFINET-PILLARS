@@ -1,8 +1,10 @@
 # REFInet Pillar
 
+![Pillar Status](.github/badges/pillar-status.svg)
+
 > Sovereign Gopher mesh node. Your cryptographic identity. Your node. Your internet.
 
-**Protocol v0.2.0** | **437 tests passing** | **AGPLv3 License** | **Python 3.9+**
+**Protocol v0.3.0** | **479 tests passing** | **AGPLv3 License** | **Python 3.9+**
 
 ---
 
@@ -13,7 +15,7 @@
 | **pip** | `pip3 install refinet-pillar[full] && refinet-pillar run` |
 | **Docker** | `docker-compose up -d` |
 | **systemd** | `sudo bash deploy/install.sh` |
-| **Gopher** | `curl gopher://pillar.refinet.network:7070/1/download` |
+| **Gopher** | `curl gopher://gopher.refinet.network:7070/1/download` |
 | **Source** | `pip3 install -r requirements.txt && python3 pillar.py` |
 
 ---
@@ -61,10 +63,10 @@ Ports: 7070 (REFInet) | 70 (Gopher) | 7073 (TLS) | 7074 (Proxy) | 7075 (WebSocke
 
 | Channel | Location |
 |---------|----------|
-| **GitHub** | [github.com/refinet/pillar](https://github.com/refinet/pillar) |
+| **GitHub** | [github.com/circularityglobal/REFINET-PILLARS](https://github.com/circularityglobal/REFINET-PILLARS) |
 | **PyPI** | `pip install refinet-pillar` |
 | **Docker Hub** | `docker pull refinet/pillar:latest` |
-| **Gopherspace** | `gopher://pillar.refinet.network:7070/download` |
+| **Gopherspace** | `gopher://gopher.refinet.network:7070/download` |
 
 ---
 
@@ -80,8 +82,8 @@ docker run -d \
 Or with docker-compose:
 
 ```bash
-git clone https://github.com/refinet/pillar.git
-cd pillar
+git clone https://github.com/circularityglobal/REFINET-PILLARS.git
+cd REFINET-PILLARS
 docker-compose up -d
 ```
 
@@ -119,6 +121,8 @@ pillar.py recovery split|restore
 - [Developer Guide](DEV_GUIDE.md) — Module reference and API docs
 - [Whitepaper](WHITEPAPER.md) — Protocol specification
 - [Security Policy](SECURITY.md) — Vulnerability reporting
+- [Contributing](CONTRIBUTING.md) — How to contribute
+- [Code of Conduct](CODE_OF_CONDUCT.md) — Community standards
 - [Changelog](CHANGELOG.md) — Release history
 
 ---
@@ -141,28 +145,52 @@ refinet-pillar/
 ├── cli/                     # CLI subcommands
 ├── proxy/                   # Privacy proxy (SSRF-protected)
 ├── integration/             # Cross-module integration
-├── tests/                   # 437 tests across 29 modules
+├── scripts/                 # Deployment & release scripts
+├── tests/                   # 479 tests across 33 modules
 ├── browser-extension/       # Chrome extension v0.4.0
 ├── gopherroot/              # Served Gopher content
 ├── deploy/                  # systemd service + install script
-└── docs/                    # Wire formats, backup guide
+├── docs/                    # Wire formats, backup guide
+└── fly.toml                 # Fly.io deployment config
 ```
 
 ---
 
 ## Contributing
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide. Quick version:
+
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Run the test suite: `python -m pytest tests/ -v`
+3. Run the test suite: `python -m pytest tests/ -q`
 4. Submit a pull request
 
-See [SECURITY.md](SECURITY.md) for vulnerability reporting.
+See [SECURITY.md](SECURITY.md) for vulnerability reporting and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community standards.
 
 ---
 
 ## License
 
 AGPLv3 — See [LICENSE](LICENSE) for full text.
+
+---
+
+## Connect to the Mesh
+
+Add the bootstrap node to `~/.refinet/peers.json`:
+
+```json
+[
+  {
+    "hostname": "gopher.refinet.network",
+    "port": 7070,
+    "pid": "REPLACE_WITH_64_CHAR_HEX_PID_FROM_KEYGEN",
+    "public_key": "REPLACE_WITH_64_CHAR_HEX_PUBKEY_FROM_KEYGEN",
+    "pillar_name": "REFInet Bootstrap Pillar"
+  }
+]
+```
+
+---
 
 Run a Pillar. Join the mesh.

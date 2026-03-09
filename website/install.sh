@@ -3,9 +3,9 @@
 # Usage: curl -fsSL https://get.refinet.network/install.sh | bash
 set -euo pipefail
 
-REFINET_VERSION="0.2.0"
+REFINET_VERSION="0.3.0"
 INSTALL_DIR="${REFINET_INSTALL_DIR:-$HOME/.refinet/pillar}"
-REPO="https://github.com/refinet/pillar"
+REPO="https://github.com/circularityglobal/REFINET-PILLARS"
 
 echo ""
 echo "REFInet Pillar Installer v${REFINET_VERSION}"
@@ -80,7 +80,8 @@ if curl -fsSL "${CHECKSUM_URL}" -o "${TMPDIR}/CHECKSUMS.txt" 2>/dev/null; then
         echo "Checksum verified OK"
     fi
 else
-    echo "Note: Checksum file not available, skipping verification."
+    echo "⚠  No release checksum available yet — skipping verification."
+    echo "   Verify manually: sha256sum refinet-pillar-*.tar.gz"
 fi
 
 # Install
@@ -119,5 +120,5 @@ echo "Or install as a system service (Linux):"
 echo "  sudo bash ${INSTALL_DIR}/deploy/install.sh"
 echo ""
 echo "Documentation: https://docs.refinet.network"
-echo "Gopherspace:   gopher://pillar.refinet.network:7070"
+echo "Gopherspace:   gopher://gopher.refinet.network:7070"
 echo ""

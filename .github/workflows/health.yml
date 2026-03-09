@@ -1,0 +1,65 @@
+name: Pillar Health
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # every 15 minutes
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install netcat
+        run: sudo apt-get install -y netcat-openbsd
+
+      - name: Probe port 7070
+        id: probe
+        run: |
+          if printf "\r\n" | nc -q2 -w5 gopher.refinet.network 7070 | grep -qi "refinet"; then
+            echo "status=online"  >> $GITHUB_OUTPUT
+            echo "color=brightgreen" >> $GITHUB_OUTPUT
+            echo "label=gopher%3A%2F%2Fgopher.refinet.network%3A7070" >> $GITHUB_OUTPUT
+          else
+            echo "status=offline" >> $GITHUB_OUTPUT
+            echo "color=red"      >> $GITHUB_OUTPUT
+            echo "label=gopher.refinet.network" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Fetch root menu
+        run: |
+          printf "\r\n" | nc -q2 -w5 gopher.refinet.network 7070 | head -20
+
+      - name: Fetch /health/services JSON
+        run: |
+          printf "/health/services\r\n" | nc -q2 -w5 gopher.refinet.network 7070 \
+            | python3 -c "
+          import sys, json
+          raw = sys.stdin.read().rstrip('.\r\n')
+          data = json.loads(raw)
+          ok = sum(1 for s in data if s['available'])
+          print(f'Services: {ok}/{len(data)} available')
+          for s in data:
+              icon = '✓' if s['available'] else '○'
+              print(f'  {icon} {s[\"name\"]}')
+          "
+
+      - name: Write status badge
+        run: |
+          mkdir -p .github/badges
+          curl -sL \
+            "https://img.shields.io/badge/${{ steps.probe.outputs.label }}-${{ steps.probe.outputs.status }}-${{ steps.probe.outputs.color }}.svg" \
+            -o .github/badges/pillar-status.svg
+
+      - name: Commit badge
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/badges/pillar-status.svg
+          git diff --staged --quiet || {
+            git commit -m "chore: pillar status [skip ci]"
+            git push
+          }

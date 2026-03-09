@@ -5,6 +5,27 @@ All notable changes are documented here.
 Format follows Keep a Changelog (https://keepachangelog.com/).
 
 
+[0.3.0] — 2026-03-09
+---------------------
+
+Added:
+  - Fly.io deployment infrastructure (fly.toml, headless start, keygen)
+  - GitHub Actions CI/CD: deploy, health monitoring, GitHub Pages
+  - Status badge with 15-minute health checks
+  - CONTRIBUTING.md, CODE_OF_CONDUCT.md, PR template
+  - GitHub Sponsors + crypto donation support
+  - 479 passing tests (up from 437)
+
+Changed:
+  - Version bumped to 0.3.0
+  - Dockerfile entrypoint changed to headless start script
+
+Fixed:
+  - All repository URLs corrected to circularityglobal/REFINET-PILLARS
+  - All subdomain references corrected to gopher.refinet.network
+  - peers.json.example field names fixed
+
+
 [0.2.0] — 2026-03-08
 ---------------------
 

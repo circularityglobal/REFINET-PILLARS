@@ -1,0 +1,33 @@
+app = "refinet-pillar"
+primary_region = "sjc"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  REFINET_HOSTNAME = "gopher.refinet.network"
+  REFINET_PORT     = "7070"
+
+# Persistent volume — SQLite ledger survives deploys
+# pid.json is re-injected from secret on each start
+[mounts]
+  source      = "refinet_data"
+  destination = "/home/refinet/.refinet"
+
+[[services]]
+  internal_port = 7070
+  protocol      = "tcp"
+  auto_stop_machines   = false
+  auto_start_machines  = true
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = 7070   # gopher://gopher.refinet.network:7070
+
+  [[services.ports]]
+    port = 70     # gopher://gopher.refinet.network (standard port)
+
+  [services.tcp_checks]
+    interval     = "15s"
+    timeout      = "5s"
+    grace_period = "30s"

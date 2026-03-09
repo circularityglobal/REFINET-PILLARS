@@ -27,6 +27,8 @@ docker run -d -p 7070:7070 -p 7075:7075 \
 ## Resources
 
 - [Security Policy](SECURITY.md)
+- [Contributing](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Changelog](CHANGELOG.md)
-- [GitHub Repository](https://github.com/refinet/pillar)
-- Gopherspace: `gopher://pillar.refinet.network:7070`
+- [GitHub Repository](https://github.com/circularityglobal/REFINET-PILLARS)
+- Live Gopherspace: `gopher://gopher.refinet.network:7070`

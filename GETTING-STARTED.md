@@ -363,12 +363,28 @@ Requires `stem` package and the Tor binary:
 
 ### Bootstrap Peers (`~/.refinet/peers.json`)
 
+Connect to the official bootstrap node to join the mesh:
+
 ```json
 [
   {
-    "host": "203.0.113.10",
+    "hostname": "gopher.refinet.network",
     "port": 7070,
-    "name": "Alice's Pillar",
+    "pid": "REPLACE_WITH_64_CHAR_HEX_PID_FROM_KEYGEN",
+    "public_key": "REPLACE_WITH_64_CHAR_HEX_PUBKEY_FROM_KEYGEN",
+    "pillar_name": "REFInet Bootstrap Pillar"
+  }
+]
+```
+
+See `deploy/peers.json.example` for the latest values. You can also add custom peers:
+
+```json
+[
+  {
+    "hostname": "203.0.113.10",
+    "port": 7070,
+    "pillar_name": "Alice's Pillar",
     "pid": "a3f7c2..."
   }
 ]
@@ -448,7 +464,7 @@ Everything lives in `~/.refinet/`:
 python3 -m pytest tests/ -v
 ```
 
-**Current status:** 437 passed, 5 skipped
+**Current status:** 479 passed, 5 skipped
 
 The 5 skips are expected:
 - 2 skips: Tor binary not installed on the test machine
@@ -460,7 +476,7 @@ The 5 skips are expected:
 
 - **Codebase:** 14,000+ lines of Python across 76+ files
 - **Browser extension:** 8 files (Manifest v3)
-- **Test suite:** 29 test files, 437 passing tests
+- **Test suite:** 33 test files, 479 passing tests
 - **Gopher routes:** 30+ endpoints
 - **Database tables:** 10+
 - **Supported EVM chains:** 5

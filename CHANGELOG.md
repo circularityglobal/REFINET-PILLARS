@@ -3,6 +3,33 @@
 All notable changes to REFInet Pillar are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] — 2026-03-09
+
+### Added
+- Fly.io deployment infrastructure (`fly.toml`, `scripts/headless_start.py`, `scripts/bootstrap_keygen.py`)
+- GitHub Actions CI/CD: deploy on push to main (`deploy.yml`)
+- Health monitoring workflow with 15-minute status badge (`health.yml`)
+- GitHub Pages website deployment (`pages.yml`)
+- Release script with checksum generation (`scripts/release.sh`)
+- Placeholder status badge (`.github/badges/pillar-status.svg`)
+- `CONTRIBUTING.md` — standalone contribution guide
+- `CODE_OF_CONDUCT.md` — Contributor Covenant v2.1
+- `.github/PULL_REQUEST_TEMPLATE.md` — PR checklist
+- `.github/FUNDING.yml` — GitHub Sponsors + crypto donations
+- `.github/CODEOWNERS` — maintainer assignment
+- 479 passing tests (up from 437)
+
+### Changed
+- Dockerfile entrypoint changed to headless start script for bootstrap node
+- Dockerfile reduced to single exposed port (7070)
+- Version bumped to 0.3.0
+
+### Fixed
+- All repository URLs corrected: `github.com/refinet/pillar` to `github.com/circularityglobal/REFINET-PILLARS`
+- All subdomain references corrected: `pillar.refinet.network` to `gopher.refinet.network`
+- `deploy/peers.json.example` field names fixed (`host` to `hostname`, added `public_key`)
+- `website/install.sh` checksum skip message now shows visible warning
+
 ## [0.2.0] — 2026-03-08
 
 ### Added

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "refinet-pillar"
-version = "0.2.0"
+version = "0.3.0"
 description = "Sovereign Gopher mesh node with Ed25519 identity and encrypted mesh networking"
 readme = "README.md"
 license = "AGPL-3.0-or-later"

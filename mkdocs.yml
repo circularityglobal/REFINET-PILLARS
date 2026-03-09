@@ -1,7 +1,7 @@
 site_name: REFInet Pillar Documentation
 site_url: https://docs.refinet.network
-repo_url: https://github.com/refinet/pillar
-repo_name: refinet/pillar
+repo_url: https://github.com/circularityglobal/REFINET-PILLARS
+repo_name: circularityglobal/REFINET-PILLARS
 
 theme:
   name: material
@@ -28,6 +28,8 @@ nav:
     - Wire Formats: docs/wire-formats.md
     - Backup & Recovery: docs/backup.md
   - Security: SECURITY.md
+  - Contributing: CONTRIBUTING.md
+  - Code of Conduct: CODE_OF_CONDUCT.md
   - Changelog: CHANGELOG.md
 
 markdown_extensions:
@@ -45,4 +47,4 @@ markdown_extensions:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/refinet/pillar
+      link: https://github.com/circularityglobal/REFINET-PILLARS

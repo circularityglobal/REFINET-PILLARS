@@ -28,7 +28,7 @@ What actually happened. Include error messages or logs if available.
 
 - **OS:** (e.g., Ubuntu 22.04, macOS 14)
 - **Python version:** (e.g., 3.11.5)
-- **Pillar version:** (e.g., 0.2.0)
+- **Pillar version:** (e.g., 0.3.0)
 - **Install method:** (pip / Docker / source)
 - **Optional deps installed:** (eth-account, websockets, web3, stem)
 

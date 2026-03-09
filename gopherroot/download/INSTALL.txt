@@ -1,7 +1,7 @@
 REFInet Pillar — Installation Guide
 ====================================
 
-Version: 0.2.0
+Version: 0.3.0
 Protocol: SGIS v14 (all phases complete)
 
 SYSTEM REQUIREMENTS
@@ -30,20 +30,20 @@ docker run -d \
   refinet/pillar:latest
 
 Or with docker-compose:
-git clone https://github.com/refinet/pillar.git
+git clone https://github.com/circularityglobal/REFINET-PILLARS.git
 cd pillar
 docker-compose up -d
 
 METHOD 3: From Source
 ---------------------
-git clone https://github.com/refinet/pillar.git
+git clone https://github.com/circularityglobal/REFINET-PILLARS.git
 cd pillar
 pip3 install -r requirements.txt
 python3 pillar.py
 
 METHOD 4: systemd Service (Linux)
 ----------------------------------
-git clone https://github.com/refinet/pillar.git
+git clone https://github.com/circularityglobal/REFINET-PILLARS.git
 cd pillar
 sudo bash deploy/install.sh
 
@@ -98,8 +98,8 @@ DOCUMENTATION
 
 SUPPORT
 -------
-  GitHub Issues: https://github.com/refinet/pillar/issues
-  Gopherspace:   gopher://pillar.refinet.network:7070
+  GitHub Issues: https://github.com/circularityglobal/REFINET-PILLARS/issues
+  Gopherspace:   gopher://gopher.refinet.network:7070
 
 ---
 REFInet Pillar v0.2.0

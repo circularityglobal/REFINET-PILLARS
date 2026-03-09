@@ -1,9 +1,9 @@
 [
   {
-    "host": "pillar.refinet.network",
+    "hostname": "gopher.refinet.network",
     "port": 7070,
-    "name": "REFInet Bootstrap Pillar",
-    "pid": "<canonical_pillar_pid>",
-    "note": "Official bootstrap node. Remove after connecting to other peers."
+    "pid": "REPLACE_WITH_64_CHAR_HEX_PID_FROM_KEYGEN",
+    "public_key": "REPLACE_WITH_64_CHAR_HEX_PUBKEY_FROM_KEYGEN",
+    "pillar_name": "REFInet Bootstrap Pillar"
   }
 ]
