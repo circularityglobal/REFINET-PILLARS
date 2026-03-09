@@ -30,6 +30,7 @@ Thumbs.db
 # Environment
 .env
 *.env.local
+.venv*/
 
 # Release artifacts
 gopherroot/download/*.tar.gz

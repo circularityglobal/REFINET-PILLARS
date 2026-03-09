@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sqlite3
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -180,12 +181,15 @@ def get_all_bindings(pid: str) -> list[dict]:
 
 def binding_exists(pid: str) -> bool:
     """Return ``True`` if at least one binding exists for *pid*."""
-    with _connect() as conn:
-        row = conn.execute(
-            "SELECT 1 FROM pid_bindings WHERE pid = ? LIMIT 1",
-            (pid,),
-        ).fetchone()
-    return row is not None
+    try:
+        with _connect() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM pid_bindings WHERE pid = ? LIMIT 1",
+                (pid,),
+            ).fetchone()
+        return row is not None
+    except sqlite3.OperationalError:
+        return False
 
 
 # ------------------------------------------------------------------

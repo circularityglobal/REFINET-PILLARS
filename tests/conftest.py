@@ -17,6 +17,10 @@ def _patch_db_paths(tmp_path, monkeypatch):
     monkeypatch.setattr("core.config.DB_DIR", db_dir)
     monkeypatch.setattr("db.live_db.LIVE_DB_PATH", db_dir / "live.db")
     monkeypatch.setattr("db.archive_db.ARCHIVE_DB_PATH", db_dir / "archive.db")
+    # Redirect PID_FILE so tests never load the real (encrypted) ~/.refinet/pid.json
+    pid_file = home_dir / "pid.json"
+    monkeypatch.setattr("core.config.PID_FILE", pid_file)
+    monkeypatch.setattr("crypto.pid.PID_FILE", pid_file)
     # Reset the initialization flag so each test re-initializes with patched paths
     import core.gopher_server as _gs
     monkeypatch.setattr(_gs, "_db_initialized", False)

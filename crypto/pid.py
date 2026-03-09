@@ -163,15 +163,19 @@ def generate_pid(password: str = None) -> dict:
 # ---------------------------------------------------------------------------
 # PID Persistence
 # ---------------------------------------------------------------------------
-def save_pid(pid_data: dict, path: Path = PID_FILE):
+def save_pid(pid_data: dict, path: Path = None):
     """Persist PID to disk."""
+    if path is None:
+        path = PID_FILE
     ensure_dirs()
     with open(path, "w") as f:
         json.dump(pid_data, f, indent=2)
 
 
-def load_pid(path: Path = PID_FILE) -> dict | None:
+def load_pid(path: Path = None) -> dict | None:
     """Load existing PID from disk, or return None."""
+    if path is None:
+        path = PID_FILE
     if path.exists():
         try:
             with open(path) as f:

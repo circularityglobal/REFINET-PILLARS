@@ -11,6 +11,7 @@ async def standard_gopher_server(tmp_path, monkeypatch):
     monkeypatch.setattr("core.config.HOME_DIR", tmp_path / ".refinet")
     monkeypatch.setattr("core.config.DB_DIR", tmp_path / ".refinet" / "db")
     monkeypatch.setattr("core.config.PID_FILE", tmp_path / ".refinet" / "pid.json")
+    monkeypatch.setattr("crypto.pid.PID_FILE", tmp_path / ".refinet" / "pid.json")
     monkeypatch.setattr("core.config.CONFIG_FILE", tmp_path / ".refinet" / "config.json")
     monkeypatch.setattr("core.config.GOPHER_ROOT", tmp_path / "gopherroot")
     (tmp_path / "gopherroot").mkdir()
@@ -33,6 +34,7 @@ async def refinet_server(tmp_path, monkeypatch):
     monkeypatch.setattr("core.config.HOME_DIR", tmp_path / ".refinet")
     monkeypatch.setattr("core.config.DB_DIR", tmp_path / ".refinet" / "db")
     monkeypatch.setattr("core.config.PID_FILE", tmp_path / ".refinet" / "pid.json")
+    monkeypatch.setattr("crypto.pid.PID_FILE", tmp_path / ".refinet" / "pid.json")
     monkeypatch.setattr("core.config.CONFIG_FILE", tmp_path / ".refinet" / "config.json")
     monkeypatch.setattr("core.config.GOPHER_ROOT", tmp_path / "gopherroot")
     (tmp_path / "gopherroot").mkdir()
@@ -202,6 +204,7 @@ class TestIsRefinetFlag:
         monkeypatch.setattr("core.config.HOME_DIR", tmp_path / ".refinet")
         monkeypatch.setattr("core.config.DB_DIR", tmp_path / ".refinet" / "db")
         monkeypatch.setattr("core.config.PID_FILE", tmp_path / ".refinet" / "pid.json")
+        monkeypatch.setattr("crypto.pid.PID_FILE", tmp_path / ".refinet" / "pid.json")
         monkeypatch.setattr("core.config.CONFIG_FILE", tmp_path / ".refinet" / "config.json")
         server = GopherServer(host="127.0.0.1", port=0, hostname="localhost")
         assert server.is_refinet is True
@@ -210,6 +213,7 @@ class TestIsRefinetFlag:
         monkeypatch.setattr("core.config.HOME_DIR", tmp_path / ".refinet")
         monkeypatch.setattr("core.config.DB_DIR", tmp_path / ".refinet" / "db")
         monkeypatch.setattr("core.config.PID_FILE", tmp_path / ".refinet" / "pid.json")
+        monkeypatch.setattr("crypto.pid.PID_FILE", tmp_path / ".refinet" / "pid.json")
         monkeypatch.setattr("core.config.CONFIG_FILE", tmp_path / ".refinet" / "config.json")
         server = GopherServer(host="127.0.0.1", port=0, hostname="localhost",
                               is_refinet=False)

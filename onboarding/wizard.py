@@ -55,10 +55,13 @@ def is_onboarding_complete() -> bool:
       1. ``pid.json`` exists and is loadable.
       2. At least one ``pid_bindings`` row exists for that PID.
     """
-    pid_data = load_pid()
-    if pid_data is None:
+    try:
+        pid_data = load_pid()
+        if pid_data is None:
+            return False
+        return binding_exists(pid_data["pid"])
+    except Exception:
         return False
-    return binding_exists(pid_data["pid"])
 
 
 # ------------------------------------------------------------------
