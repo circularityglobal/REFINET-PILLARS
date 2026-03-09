@@ -44,9 +44,9 @@ test = [
 refinet-pillar = "pillar:main"
 
 [project.urls]
-Homepage = "https://refinet.network"
+Homepage = "https://refinet.io"
 Repository = "https://github.com/circularityglobal/REFINET-PILLARS"
-Documentation = "https://docs.refinet.network"
+Documentation = "https://docs.refinet.io"
 Issues = "https://github.com/circularityglobal/REFINET-PILLARS/issues"
 
 [tool.pytest.ini_options]

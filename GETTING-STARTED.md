@@ -368,7 +368,7 @@ Connect to the official bootstrap node to join the mesh:
 ```json
 [
   {
-    "hostname": "gopher.refinet.network",
+    "hostname": "gopher.refinet.io",
     "port": 7070,
     "pid": "REPLACE_WITH_64_CHAR_HEX_PID_FROM_KEYGEN",
     "public_key": "REPLACE_WITH_64_CHAR_HEX_PUBKEY_FROM_KEYGEN",

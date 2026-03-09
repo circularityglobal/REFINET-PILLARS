@@ -356,7 +356,7 @@ def build_download_menu(hostname: str, port: int) -> str:
     lines.append(html_link("  GitHub Repository", "https://github.com/circularityglobal/REFINET-PILLARS", hostname, port))
     lines.append(html_link("  Docker Hub", "https://hub.docker.com/r/refinet/pillar", hostname, port))
     lines.append(html_link("  PyPI Package", "https://pypi.org/project/refinet-pillar", hostname, port))
-    lines.append(html_link("  Documentation", "https://docs.refinet.network", hostname, port))
+    lines.append(html_link("  Documentation", "https://docs.refinet.io", hostname, port))
     lines.append(info_line(""))
 
     lines.append(separator())

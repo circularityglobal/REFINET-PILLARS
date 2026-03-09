@@ -99,7 +99,7 @@ DOCUMENTATION
 SUPPORT
 -------
   GitHub Issues: https://github.com/circularityglobal/REFINET-PILLARS/issues
-  Gopherspace:   gopher://gopher.refinet.network:7070
+  Gopherspace:   gopher://gopher.refinet.io:7070
 
 ---
 REFInet Pillar v0.2.0

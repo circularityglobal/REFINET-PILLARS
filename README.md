@@ -15,7 +15,7 @@
 | **pip** | `pip3 install refinet-pillar[full] && refinet-pillar run` |
 | **Docker** | `docker-compose up -d` |
 | **systemd** | `sudo bash deploy/install.sh` |
-| **Gopher** | `curl gopher://gopher.refinet.network:7070/1/download` |
+| **Gopher** | `curl gopher://gopher.refinet.io:7070/1/download` |
 | **Source** | `pip3 install -r requirements.txt && python3 pillar.py` |
 
 ---
@@ -66,7 +66,7 @@ Ports: 7070 (REFInet) | 70 (Gopher) | 7073 (TLS) | 7074 (Proxy) | 7075 (WebSocke
 | **GitHub** | [github.com/circularityglobal/REFINET-PILLARS](https://github.com/circularityglobal/REFINET-PILLARS) |
 | **PyPI** | `pip install refinet-pillar` |
 | **Docker Hub** | `docker pull refinet/pillar:latest` |
-| **Gopherspace** | `gopher://gopher.refinet.network:7070/download` |
+| **Gopherspace** | `gopher://gopher.refinet.io:7070/download` |
 
 ---
 
@@ -182,7 +182,7 @@ Add the bootstrap node to `~/.refinet/peers.json`:
 ```json
 [
   {
-    "hostname": "gopher.refinet.network",
+    "hostname": "gopher.refinet.io",
     "port": 7070,
     "pid": "REPLACE_WITH_64_CHAR_HEX_PID_FROM_KEYGEN",
     "public_key": "REPLACE_WITH_64_CHAR_HEX_PUBKEY_FROM_KEYGEN",

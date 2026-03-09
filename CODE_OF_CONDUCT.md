@@ -23,7 +23,7 @@ This Code of Conduct applies to all project spaces including GitHub issues, pull
 
 ## Enforcement
 
-Instances of unacceptable behavior may be reported to the project maintainers at **conduct@refinet.network**. All reports will be reviewed promptly and fairly. Maintainers are obligated to respect the privacy of the reporter.
+Instances of unacceptable behavior may be reported to the project maintainers at **conduct@refinet.io**. All reports will be reviewed promptly and fairly. Maintainers are obligated to respect the privacy of the reporter.
 
 Project maintainers may take any action they deem appropriate, including warnings, temporary restrictions, or permanent removal from project spaces.
 

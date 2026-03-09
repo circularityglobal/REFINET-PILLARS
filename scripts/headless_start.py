@@ -35,10 +35,10 @@ pid_file.write_text(json.dumps(pid_data, indent=2))
 # --- Step 3: Write config.json ---
 
 config = {
-    "hostname": os.environ.get("REFINET_HOSTNAME", "gopher.refinet.network"),
+    "hostname": os.environ.get("REFINET_HOSTNAME", "gopher.refinet.io"),
     "port": int(os.environ.get("REFINET_PORT", "7070")),
     "pillar_name": "REFInet Bootstrap Pillar",
-    "description": "The canonical REFInet bootstrap node. gopher://gopher.refinet.network:7070",
+    "description": "The canonical REFInet bootstrap node. gopher://gopher.refinet.io:7070",
     "protocol_version": "0.3.0",
     "tor_enabled": False,
     "websocket_enabled": False,

@@ -14,7 +14,7 @@ Do NOT open a public GitHub issue for security vulnerabilities.
 
 Report privately via:
 - **GitHub Security Advisories** (preferred)
-- **Email:** security@refinet.network
+- **Email:** security@refinet.io
 
 ### Response Timeline
 - **Acknowledgment:** 48 hours

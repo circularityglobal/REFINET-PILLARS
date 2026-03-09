@@ -22,7 +22,7 @@ Changed:
 
 Fixed:
   - All repository URLs corrected to circularityglobal/REFINET-PILLARS
-  - All subdomain references corrected to gopher.refinet.network
+  - All subdomain references corrected to gopher.refinet.io
   - peers.json.example field names fixed
 
 

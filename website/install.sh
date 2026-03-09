@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # REFInet Pillar — One-line installer
-# Usage: curl -fsSL https://get.refinet.network/install.sh | bash
+# Usage: curl -fsSL https://get.refinet.io/install.sh | bash
 set -euo pipefail
 
 REFINET_VERSION="0.3.0"
@@ -119,6 +119,6 @@ echo ""
 echo "Or install as a system service (Linux):"
 echo "  sudo bash ${INSTALL_DIR}/deploy/install.sh"
 echo ""
-echo "Documentation: https://docs.refinet.network"
-echo "Gopherspace:   gopher://gopher.refinet.network:7070"
+echo "Documentation: https://docs.refinet.io"
+echo "Gopherspace:   gopher://gopher.refinet.io:7070"
 echo ""

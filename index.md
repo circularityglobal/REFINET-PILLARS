@@ -31,4 +31,4 @@ docker run -d -p 7070:7070 -p 7075:7075 \
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Changelog](CHANGELOG.md)
 - [GitHub Repository](https://github.com/circularityglobal/REFINET-PILLARS)
-- Live Gopherspace: `gopher://gopher.refinet.network:7070`
+- Live Gopherspace: `gopher://gopher.refinet.io:7070`

@@ -26,7 +26,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 - All repository URLs corrected: `github.com/refinet/pillar` to `github.com/circularityglobal/REFINET-PILLARS`
-- All subdomain references corrected: `pillar.refinet.network` to `gopher.refinet.network`
+- All subdomain references corrected: `pillar.refinet.io` to `gopher.refinet.io`
 - `deploy/peers.json.example` field names fixed (`host` to `hostname`, added `public_key`)
 - `website/install.sh` checksum skip message now shows visible warning
 

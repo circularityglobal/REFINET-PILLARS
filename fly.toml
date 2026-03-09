@@ -5,7 +5,7 @@ primary_region = "sjc"
   dockerfile = "Dockerfile"
 
 [env]
-  REFINET_HOSTNAME = "gopher.refinet.network"
+  REFINET_HOSTNAME = "gopher.refinet.io"
   REFINET_PORT     = "7070"
 
 # Persistent volume — SQLite ledger survives deploys
@@ -22,10 +22,10 @@ primary_region = "sjc"
   min_machines_running = 1
 
   [[services.ports]]
-    port = 7070   # gopher://gopher.refinet.network:7070
+    port = 7070   # gopher://gopher.refinet.io:7070
 
   [[services.ports]]
-    port = 70     # gopher://gopher.refinet.network (standard port)
+    port = 70     # gopher://gopher.refinet.io (standard port)
 
   [services.tcp_checks]
     interval     = "15s"
