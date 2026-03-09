@@ -47,7 +47,6 @@ refinet-pillar = "pillar:main"
 Homepage = "https://refinet.network"
 Repository = "https://github.com/circularityglobal/REFINET-PILLARS"
 Documentation = "https://docs.refinet.network"
-Gopherspace = "gopher://pillar.refinet.network:7070"
 Issues = "https://github.com/circularityglobal/REFINET-PILLARS/issues"
 
 [tool.pytest.ini_options]
