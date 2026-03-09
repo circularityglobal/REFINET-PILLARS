@@ -1412,7 +1412,7 @@ if not str(target).startswith(str(GOPHER_ROOT.resolve())):  # Layer 2: verify bo
 
 ### Overview
 
-- **236 tests** across **16 modules** (234 passed, 2 skipped)
+- **484 tests** across **33 modules** (479 passed, 5 skipped)
 - Framework: pytest + pytest-asyncio
 - Configuration: `pytest.ini` with `asyncio_mode = auto`
 

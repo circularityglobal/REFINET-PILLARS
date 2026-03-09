@@ -14,7 +14,7 @@ Added:
   - Status badge with 15-minute health checks
   - CONTRIBUTING.md, CODE_OF_CONDUCT.md, PR template
   - GitHub Sponsors + crypto donation support
-  - 479 passing tests (up from 437)
+  - 484 passing tests (up from 437)
 
 Changed:
   - Version bumped to 0.3.0

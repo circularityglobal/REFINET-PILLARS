@@ -31,20 +31,20 @@ docker run -d \
 
 Or with docker-compose:
 git clone https://github.com/circularityglobal/REFINET-PILLARS.git
-cd pillar
+cd REFINET-PILLARS
 docker-compose up -d
 
 METHOD 3: From Source
 ---------------------
 git clone https://github.com/circularityglobal/REFINET-PILLARS.git
-cd pillar
+cd REFINET-PILLARS
 pip3 install -r requirements.txt
 python3 pillar.py
 
 METHOD 4: systemd Service (Linux)
 ----------------------------------
 git clone https://github.com/circularityglobal/REFINET-PILLARS.git
-cd pillar
+cd REFINET-PILLARS
 sudo bash deploy/install.sh
 
 This installs to /opt/refinet and creates a systemd service that

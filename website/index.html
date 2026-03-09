@@ -122,8 +122,6 @@
         <p class="reveal">REFInet is built in public. Run a Pillar, report issues, contribute code, or just lurk in the mesh.</p>
         <div class="community-ctas reveal">
           <a href="https://github.com/circularityglobal/REFINET-PILLARS" class="btn btn-primary" target="_blank" rel="noopener">GitHub Repository</a>
-          <!-- TODO: Update Discord invite URL when server is created -->
-          <a href="https://discord.gg/refinet" class="btn btn-ghost" target="_blank" rel="noopener">Join Discord</a>
         </div>
       </div>
     </section>
@@ -243,8 +241,8 @@
           <div class="download-btns">
             <a href="https://github.com/circularityglobal/REFINET-PILLARS/releases/latest/download/refinet-pillar-setup.exe" class="btn btn-download">&#8595; Download refinet-pillar-setup.exe</a>
           </div>
-          <p class="install-note">Run the installer — no dependencies required.</p>
-          <div class="requirements">Windows 10/11 &bull; 64-bit &bull; ~50MB</div>
+          <p class="install-note">Standalone executable — no dependencies required. Run from any folder.</p>
+          <div class="requirements">Windows 10/11 &bull; 64-bit &bull; ~25MB</div>
           <div class="getting-started-link">New to REFInet? &rarr; <a href="#" data-modal="docs-modal" data-doc="GETTING-STARTED">Read the Getting Started guide</a></div>
         </div>
 
@@ -252,13 +250,13 @@
         <div class="tab-panel dl-tab-panel" id="dl-tab-macos" role="tabpanel">
           <div class="tab-panel-header">
             <h3>macOS Disk Image</h3>
-            <span class="badge">.dmg &bull; Universal (Intel + Apple Silicon)</span>
+            <span class="badge">.dmg &bull; Apple Silicon &amp; Intel</span>
           </div>
           <div class="download-btns">
             <a href="https://github.com/circularityglobal/REFINET-PILLARS/releases/latest/download/refinet-pillar.dmg" class="btn btn-download">&#8595; Download refinet-pillar.dmg</a>
           </div>
-          <p class="install-note">Open DMG, drag to Applications.</p>
-          <div class="requirements">macOS 11+ &bull; Intel &amp; Apple Silicon &bull; ~55MB</div>
+          <p class="install-note">Open DMG, copy <code>refinet-pillar</code> to <code>/usr/local/bin/</code>.</p>
+          <div class="requirements">macOS 11+ &bull; Intel &amp; Apple Silicon &bull; ~22MB</div>
           <div class="getting-started-link">New to REFInet? &rarr; <a href="#" data-modal="docs-modal" data-doc="GETTING-STARTED">Read the Getting Started guide</a></div>
         </div>
 
@@ -276,6 +274,7 @@
             <button class="copy-btn" aria-label="Copy install command">Copy</button>
             <pre>sudo dpkg -i refinet-pillar.deb</pre>
           </div>
+          <p class="install-note">The .deb includes a systemd service. AppImage runs on any distro — no install needed.</p>
           <div class="requirements">Ubuntu 20.04+ / Debian 11+ / Any distro (AppImage)</div>
           <div class="getting-started-link">New to REFInet? &rarr; <a href="#" data-modal="docs-modal" data-doc="GETTING-STARTED">Read the Getting Started guide</a></div>
         </div>
@@ -290,7 +289,7 @@
             <a href="https://github.com/circularityglobal/REFINET-PILLARS/releases/latest/download/refinet-pillar.apk" class="btn btn-download">&#8595; Download refinet-pillar.apk</a>
           </div>
           <div class="warning-notice">&#9888; Enable "Install from unknown sources" in Android settings. iOS support coming soon.</div>
-          <div class="requirements">Android 10+ &bull; ARM64 &bull; ~30MB</div>
+          <div class="requirements">Android 8+ (API 26) &bull; ARM64 &bull; ~30MB</div>
           <div class="getting-started-link">New to REFInet? &rarr; <a href="#" data-modal="docs-modal" data-doc="GETTING-STARTED">Read the Getting Started guide</a></div>
         </div>
 
@@ -463,14 +462,6 @@ refinet-pillar run</pre>
             <h3>GitHub Repository</h3>
             <p>Browse source code, report issues, and contribute to the protocol.</p>
             <span class="card-link">Open &rarr;</span>
-          </a>
-          <a href="https://discord.gg/refinet" class="community-modal-card" target="_blank" rel="noopener">
-            <div class="community-modal-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03z"/></svg>
-            </div>
-            <h3>Join Discord</h3>
-            <p>Chat with the community, get help running your Pillar, and share ideas.</p>
-            <span class="card-link">Join &rarr;</span>
           </a>
           <a href="gopher://gopher.refinet.io:7070" class="community-modal-card">
             <div class="community-modal-icon">

@@ -986,7 +986,7 @@ pytest -v                 # Verbose output
 pytest tests/test_routes.py  # Specific module
 ```
 
-The test suite covers 236 tests across 16 modules (234 passed, 2 skipped), including end-to-end TCP route tests, dual-port route gating, response signature blocks, mesh discovery simulation, first-run initialization, gap-closure verification, crypto operations, Tor manager lifecycle, and Tor integration tests.
+The test suite covers 484 tests across 33 modules (479 passed, 5 skipped), including end-to-end TCP route tests, dual-port route gating, response signature blocks, mesh discovery simulation, first-run initialization, gap-closure verification, crypto operations, Tor manager lifecycle, and Tor integration tests.
 
 ### Project Structure
 
@@ -1027,7 +1027,7 @@ REFINET-GOPHERSPACE/
 │   ├── news/               # News directory
 │   ├── dapps/              # .dapp files
 │   └── holes/              # Registered gopherholes
-├── tests/                  # Pytest suite (236 tests across 16 modules)
+├── tests/                  # Pytest suite (484 tests across 33 modules)
 │   ├── test_routes.py      # TCP route integration tests (incl. Tor PID/status)
 │   ├── test_dual_port.py   # Dual-port route gating tests
 │   ├── test_tor_manager.py # Tor manager unit tests (15 tests)
@@ -1082,7 +1082,7 @@ REFINET-GOPHERSPACE/
 - `--status` CLI flag (offline Pillar status query)
 - WAL checkpoint background task (6-hour cycle)
 - Backup & recovery documentation (`docs/backup.md`)
-- Test suite: 236 tests across 16 modules (234 passed, 2 skipped)
+- Test suite: 484 tests across 33 modules (479 passed, 5 skipped)
 
 ### Phase 3 — Token Economics (Planned)
 

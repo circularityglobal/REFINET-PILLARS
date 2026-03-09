@@ -3,8 +3,16 @@ REFInet Pillar — Configuration
 """
 
 import os
+import sys
 import json
 from pathlib import Path
+
+
+def _base_dir() -> Path:
+    """Return the project root, handling PyInstaller frozen bundles."""
+    if getattr(sys, "frozen", False):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent.parent
 
 
 # ---------------------------------------------------------------------------
@@ -36,7 +44,7 @@ ARGON2_HASH_LEN = 32  # AES-256 key length
 # ---------------------------------------------------------------------------
 GOPHER_HOST = "0.0.0.0"
 GOPHER_PORT = 7070  # Default REFInet port (classic Gopher = 70)
-GOPHER_ROOT = Path(__file__).resolve().parent.parent / "gopherroot"
+GOPHER_ROOT = _base_dir() / "gopherroot"
 
 # ---------------------------------------------------------------------------
 # REFInet Accounting Calendar
