@@ -24,6 +24,7 @@ nav:
   - Architecture: PLATFORM_OVERVIEW.md
   - Developer Guide: DEV_GUIDE.md
   - Whitepaper: WHITEPAPER.md
+  - Deployment: docs/DEPLOYMENT.md
   - Reference:
     - Wire Formats: docs/wire-formats.md
     - Backup & Recovery: docs/backup.md

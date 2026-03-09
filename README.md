@@ -121,6 +121,7 @@ pillar.py recovery split|restore
 - [Platform Overview](PLATFORM_OVERVIEW.md) — Architecture deep dive
 - [Developer Guide](DEV_GUIDE.md) — Module reference and API docs
 - [Whitepaper](WHITEPAPER.md) — Protocol specification
+- [Deployment Guide](docs/DEPLOYMENT.md) — Bootstrap node infrastructure setup
 - [Security Policy](SECURITY.md) — Vulnerability reporting
 - [Contributing](CONTRIBUTING.md) — How to contribute
 - [Code of Conduct](CODE_OF_CONDUCT.md) — Community standards
