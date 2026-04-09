@@ -29,7 +29,9 @@ jobs:
           restore-keys: ${{ runner.os }}-pip-
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          pip install pytest-timeout
 
       - name: Run tests
-        run: python -m pytest tests/ -v --tb=short -q
+        run: python -m pytest tests/ -v --tb=short -q --timeout=60

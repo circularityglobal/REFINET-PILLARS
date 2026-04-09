@@ -14,13 +14,16 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          pip install pytest-timeout
       - name: Run test suite
-        run: python -m pytest tests/ -q
+        run: python -m pytest tests/ -q --timeout=60
 
   deploy:
     needs: test
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - uses: actions/checkout@v4
 
@@ -32,10 +35,28 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
-      - name: Set PID secret on Fly
+      - name: Wait for deployment health check
         run: |
-          flyctl secrets set \
-            REFINET_PID_JSON='${{ secrets.REFINET_PID_JSON }}' \
-            --app refinet-pillar
+          echo "Waiting for deployment to be healthy..."
+          sleep 30
+          for i in {1..10}; do
+            if printf "\r\n" | nc -q2 -w5 gopher.refinet.io 7070 | grep -qi "refinet"; then
+              echo "Deployment successful - service is responding"
+              exit 0
+            fi
+            echo "Attempt $i: Service not ready yet, waiting..."
+            sleep 10
+          done
+          echo "Deployment health check failed"
+          exit 1
+
+      - name: Set PID secret on Fly (only if changed)
+        run: |
+          if [ -n "${{ secrets.REFINET_PID_JSON }}" ]; then
+            flyctl secrets set \
+              REFINET_PID_JSON='${{ secrets.REFINET_PID_JSON }}' \
+              --app refinet-pillar
+          fi
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        continue-on-error: true

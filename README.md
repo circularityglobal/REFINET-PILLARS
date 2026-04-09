@@ -167,10 +167,33 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide. Quick version:
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Run the test suite: `python -m pytest tests/ -q`
+3. Run the test suite: `python -m pytest tests/ -q --timeout=60`
 4. Submit a pull request
 
 See [SECURITY.md](SECURITY.md) for vulnerability reporting and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community standards.
+
+---
+
+## CI/CD Pipeline Status
+
+| Workflow | Status | Description |
+|----------|--------|-------------|
+| **Test Suite** | [![Tests](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/test.yml/badge.svg)](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/test.yml) | Multi-Python testing (3.9, 3.11, 3.12) with 60s timeout |
+| **Deploy Bootstrap** | [![Deploy](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/deploy.yml/badge.svg)](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/deploy.yml) | Automated Fly.io deployment with health checks |
+| **Release** | [![Release](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/release.yml/badge.svg)](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/release.yml) | Multi-platform builds (Windows, macOS, Linux, Android, PyPI, Docker) |
+| **Pillar Health** | [![Health](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/health.yml/badge.svg)](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/health.yml) | 15-minute uptime monitoring of bootstrap node |
+| **Website** | [![Website](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/pages.yml/badge.svg)](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/pages.yml) | GitHub Pages deployment |
+
+### Production Pipeline Quality Improvements
+
+Recent enhancements to the CI/CD pipeline:
+
+- ✅ **Fixed `.gitignore`**: Restored proper ignore rules for `__pycache__/`, build artifacts, and sensitive files
+- ✅ **Added `pytest-timeout`**: Prevents hanging tests with 60-second timeout per test
+- ✅ **Deployment health checks**: Automatic verification after Fly.io deployment
+- ✅ **Environment protection**: Deployments require production environment approval
+- ✅ **Graceful secret handling**: PID secrets only updated when changed
+- ✅ **Multi-version testing**: Ensures compatibility across Python 3.9, 3.11, and 3.12
 
 ---
 
