@@ -5,7 +5,7 @@
 
 > Sovereign Gopher mesh node. Your cryptographic identity. Your node. Your internet.
 
-**Protocol v0.3.0** | **484 tests passing** | **AGPLv3 License** | **Python 3.9+**
+**Protocol v0.3.0** | **482 tests passing** | **AGPLv3 License** | **Python 3.9+**
 
 ---
 
