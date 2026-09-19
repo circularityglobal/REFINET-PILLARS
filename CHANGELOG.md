@@ -32,6 +32,14 @@ breaking existing wire formats, stored records or the browser extension.
 - Opt-in namespaced gopherhole selectors: `hole create --namespaced` serves at
   `/holes/<pid16>/<slug>` so a name cannot collide with another Pillar's (F20)
 
+### Added (Operator tooling)
+- `pillar identity show` — prints every wallet binding, flags one that predates
+  0.5.0, and names the command that replaces it
+- `pillar identity challenge` / `pillar identity rebind` — re-sign a binding from
+  the terminal, interactively or from a script
+- A "Re-sign binding" action in the bundled browser extension, and the
+  settlement networks in its chain picker
+
 ### Added (Identity)
 - A binding is its own EIP-4361 statement (§3.1): `I bind this wallet to
   REFINET Pillar <pid> as its <deployer|operator>`. A sign-in signature can no
@@ -48,6 +56,21 @@ breaking existing wire formats, stored records or the browser extension.
   document signature. `/identity.json` still serves schema 2, unchanged
 - WebSocket `rebind` message: adds a §3.1 binding to an already-onboarded
   Pillar. Bindings stay append-only; the §3.1 one becomes canonical
+
+### Fixed (Deployment)
+- The headless bootstrap entrypoint writes `pid.json` through `save_pid()`, so
+  it is `0600` there too, and reports the real protocol version instead of a
+  hard-coded `0.3.0`
+- It no longer inserts a synthetic binding that no verifier would accept; a
+  bootstrap node declares `REFINET_HEADLESS=1` and simply has no binding
+- An encrypted key can be supplied a password in Docker, Fly and systemd; the
+  entrypoint fails fast with instructions when it is missing
+- Archived yearly and monthly summaries carry `requests_served`, so request
+  volume survives migration out of the live database
+- Vault item files are written `0600`; proxy tokens gained a domain-separated
+  `sig1` beside the original `signature`
+- `pytest-timeout` is a declared test dependency, so the test command in the
+  README works as written
 
 ### Fixed
 - A binding records the chain id the wallet actually signed on, instead of

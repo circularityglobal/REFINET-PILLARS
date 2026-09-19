@@ -34,9 +34,18 @@ def _connect():
 
 
 def init_archive_db():
-    """Create the archive database and all tables."""
+    """Create the archive database and all tables, migrating if needed."""
+    from db.live_db import _add_missing_columns
     with _connect() as conn:
         conn.executescript(ARCHIVE_SCHEMA)
+        conn.commit()
+        # Added in 0.5.0, when request volume moved to a per-day counter.
+        _add_missing_columns(conn, "yearly_summary", [
+            ("total_requests_served", "INTEGER DEFAULT 0"),
+        ])
+        _add_missing_columns(conn, "monthly_snapshot", [
+            ("requests_served", "INTEGER DEFAULT 0"),
+        ])
         conn.commit()
 
 
@@ -49,23 +58,27 @@ def archive_yearly_summary(
     total_content_served: int = 0,
     total_uptime_seconds: int = 0,
     peers_seen: int = 0,
+    total_requests_served: int = 0,
 ):
     """Write or update a yearly summary record."""
     with _connect() as conn:
         conn.execute(
             """INSERT INTO yearly_summary
                (accounting_year, pid, total_tx_count, total_volume,
-                avg_latency_ms, total_content_served, total_uptime_seconds, peers_seen)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                avg_latency_ms, total_content_served, total_uptime_seconds,
+                peers_seen, total_requests_served)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(accounting_year, pid) DO UPDATE SET
                    total_tx_count=excluded.total_tx_count,
                    total_volume=excluded.total_volume,
                    avg_latency_ms=excluded.avg_latency_ms,
                    total_content_served=excluded.total_content_served,
                    total_uptime_seconds=excluded.total_uptime_seconds,
-                   peers_seen=excluded.peers_seen""",
+                   peers_seen=excluded.peers_seen,
+                   total_requests_served=excluded.total_requests_served""",
             (accounting_year, pid, total_tx_count, total_volume,
-             avg_latency_ms, total_content_served, total_uptime_seconds, peers_seen),
+             avg_latency_ms, total_content_served, total_uptime_seconds,
+             peers_seen, total_requests_served),
         )
         conn.commit()
 
@@ -78,21 +91,23 @@ def archive_monthly_snapshot(
     volume: float,
     snapshot_data: dict,
     content_hash: str = None,
+    requests_served: int = 0,
 ):
     """Store a compressed monthly snapshot (daily data as JSON blob)."""
     with _connect() as conn:
         conn.execute(
             """INSERT INTO monthly_snapshot
                (accounting_year, accounting_month, pid, tx_count, volume,
-                snapshot_data, content_hash)
-               VALUES (?, ?, ?, ?, ?, ?, ?)
+                snapshot_data, content_hash, requests_served)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(accounting_year, accounting_month, pid) DO UPDATE SET
                    tx_count=excluded.tx_count,
                    volume=excluded.volume,
                    snapshot_data=excluded.snapshot_data,
-                   content_hash=excluded.content_hash""",
+                   content_hash=excluded.content_hash,
+                   requests_served=excluded.requests_served""",
             (accounting_year, accounting_month, pid, tx_count, volume,
-             json.dumps(snapshot_data), content_hash),
+             json.dumps(snapshot_data), content_hash, requests_served),
         )
         conn.commit()
 
@@ -151,6 +166,7 @@ def migrate_to_archive(pid: str) -> int:
                        SUM(total_volume) as volume,
                        AVG(avg_latency_ms) as avg_latency,
                        SUM(content_served) as content_served,
+                       SUM(requests_served) as requests_served,
                        SUM(uptime_seconds) as uptime,
                        MAX(peers_connected) as peers
                    FROM daily_metrics
@@ -176,6 +192,7 @@ def migrate_to_archive(pid: str) -> int:
                 volume=metrics["volume"] or 0.0,
                 snapshot_data=snapshot_data,
                 content_hash=snapshot_hash,
+                requests_served=metrics["requests_served"] or 0,
             )
 
             archive_yearly_summary(
@@ -187,6 +204,7 @@ def migrate_to_archive(pid: str) -> int:
                 total_content_served=metrics["content_served"] or 0,
                 total_uptime_seconds=metrics["uptime"] or 0,
                 peers_seen=metrics["peers"] or 0,
+                total_requests_served=metrics["requests_served"] or 0,
             )
 
             archived_count += 1

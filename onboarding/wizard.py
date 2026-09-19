@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from pathlib import Path
 
@@ -56,11 +57,18 @@ def is_onboarding_complete() -> bool:
     Return ``True`` only when **both** conditions hold:
       1. ``pid.json`` exists and is loadable.
       2. At least one ``pid_bindings`` row exists for that PID.
+
+    ``REFINET_HEADLESS=1`` drops the second condition, for nodes that have
+    an identity but no wallet — a bootstrap node seeded from
+    ``REFINET_PID_JSON``. Such a node simply has no binding, rather than
+    carrying a fabricated one that no verifier would accept.
     """
     try:
         pid_data = load_pid()
         if pid_data is None:
             return False
+        if os.environ.get("REFINET_HEADLESS") == "1":
+            return True
         return binding_exists(pid_data["pid"])
     except Exception:
         return False

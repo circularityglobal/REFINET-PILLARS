@@ -24,6 +24,8 @@
    - 5.11 [Content Indexing](#511-content-indexing)
    - 5.12 [Tor Transport Layer](#512-tor-transport-layer)
    - 5.13 [Backup & Recovery](#513-backup--recovery)
+   - 5.14 [Key Protection, Vault & Key-Possession Proofs](#514-key-protection-vault--key-possession-proofs)
+   - 5.15 [Wallet Bindings & the Identity Document](#515-wallet-bindings--the-identity-document)
 6. [Security Model](#6-security-model)
 7. [Token Economics (Planned)](#7-token-economics-planned)
 8. [Developer Guide](#8-developer-guide)
@@ -746,6 +748,16 @@ A Pillar's identity and data are stored in `~/.refinet/`. The following files sh
 **Priority order:** `pid.json` > `tor_data/hs_privkey` > `db/live.db` > `config.json` > `db/archive.db`
 
 The `pid.json` file is the most critical — it contains the Ed25519 private key that defines the Pillar's identity. Without it, a new identity must be generated and all peer trust relationships reset.
+
+### 5.14 Key Protection, Vault & Key-Possession Proofs
+
+**Key at rest.** `pid.json` is written with mode `0600` inside a `0700` `~/.refinet/`. When the operator chooses a password, the Ed25519 private key is encrypted with AES-256-GCM under a key derived by Argon2id (time cost 3, 64 MB, parallelism 4). The password is never stored: it unlocks the key in process memory (`crypto/unlock.py`), supplied at startup by an interactive prompt or `REFINET_PID_PASSWORD`.
+
+**Vault.** `vault/storage.py` stores personal files encrypted with the same AES-256-GCM + Argon2id scheme, one file per item under `~/.refinet/vault/`, with metadata (name, SHA-256 of the ciphertext, size, owner PID) in the `vault_items` table.
+
+**Shamir recovery.** `crypto/recovery.py` splits the private key into *n* shares, any *k* of which reconstruct it (Shamir over GF(256), byte-wise). Each share carries its index, the threshold and a 4-byte key fingerprint so mismatched shares are detected. `pillar.py recovery split|restore` drives it.
+
+**Key-possession proofs.** `crypto/zkp.py` (`KeyPossessionProof`, formerly named `SchnorrZKP`) proves a party holds an Ed25519 key: a commitment and context are hashed into a challenge, and the prover *signs* that challenge. This is a signature-based challenge-response — the same guarantee SIWE gives for an EVM key — and not a zero-knowledge proof. It backs the `/auth/zkp-challenge` and `/auth/zkp-verify` routes, whose names are kept for compatibility.
 
 ### 5.15 Wallet Bindings & the Identity Document
 

@@ -19,7 +19,9 @@ import logging
 import time
 from datetime import datetime, timezone
 
-from crypto.signing import hash_content, sign_content
+from crypto.signing import (
+    DOMAIN_PROXY_TOKEN, hash_content, sign_content, sign_domain,
+)
 
 logger = logging.getLogger("refinet.proxy")
 
@@ -120,12 +122,23 @@ class ForwardProxy:
             if self.pid_data and self.private_key:
                 timestamp = int(time.time())
                 token_data = f"{self.pid_data['pid']}:{timestamp}:{selector}"
+                # "signature" keeps its original meaning (over the raw
+                # token string); sig1 is domain-separated, so a proxy token
+                # can never be presented as a response or binding signature
+                # made with the same key.
                 token_sig = sign_content(token_data.encode("utf-8"), self.private_key)
+                token_sig1 = sign_domain(
+                    DOMAIN_PROXY_TOKEN, self.private_key,
+                    self.pid_data["pid"], timestamp, selector,
+                )
                 token_header = (
                     f"\r\n---BEGIN REFINET PROXY TOKEN---\r\n"
                     f"pid:{self.pid_data['pid']}\r\n"
                     f"timestamp:{timestamp}\r\n"
                     f"signature:{token_sig}\r\n"
+                    f"v:1\r\n"
+                    f"selector:{selector}\r\n"
+                    f"sig1:{token_sig1}\r\n"
                     f"---END REFINET PROXY TOKEN---\r\n"
                 )
                 response += token_header.encode("utf-8")

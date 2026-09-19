@@ -690,6 +690,77 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "rebind-start") {
+    // Re-sign this Pillar's wallet binding:
+    // wallet discover → request challenge → sign → submit.
+    //
+    // A binding made before protocol 0.5.0 came from an ordinary sign-in
+    // signature. Those still verify, but they are not published in the v3
+    // identity document. Re-signing appends a new binding — the old row is
+    // kept, because the registry is append-only — and needs the wallet, so
+    // it can never happen without the operator.
+    (async () => {
+      const tabId = await getActiveTabId();
+      const uuid = message.walletUuid;
+      const chainId = message.chainId || 1;
+      const bindingType = message.bindingType || "deployer";
+
+      const accounts = await walletRequestAccounts(tabId, uuid);
+      if (!accounts || accounts.length === 0) {
+        throw new Error("No accounts returned from wallet");
+      }
+      const address = accounts[0];
+
+      const challengeResp = await sendTypedMessage(
+        {
+          type: "rebind",
+          address,
+          chain_id: chainId,
+          binding_type: bindingType,
+          company_url: message.companyUrl || null,
+        },
+        "rebind_challenge"
+      );
+      if (challengeResp.status !== "ok") {
+        throw new Error(challengeResp.error || "Could not get a binding challenge");
+      }
+
+      const signature = await walletPersonalSign(
+        tabId, uuid, challengeResp.message, address
+      );
+
+      const bindingResp = await sendTypedMessage(
+        {
+          type: "rebind",
+          address,
+          binding_type: bindingType,
+          message: challengeResp.message,
+          signature,
+          password: message.password || null,
+        },
+        "rebind_complete"
+      );
+      if (bindingResp.status !== "ok") {
+        // The Pillar's key is encrypted and locked: it needs the password
+        // once, in memory, before it can counter-sign.
+        if (bindingResp.locked) {
+          const err = new Error("Pillar key is locked — password required");
+          err.locked = true;
+          throw err;
+        }
+        throw new Error(bindingResp.error || "Binding creation failed");
+      }
+
+      await fetchIdentity();
+      return bindingResp;
+    })()
+      .then((result) => sendResponse({ ok: true, result }))
+      .catch((err) =>
+        sendResponse({ ok: false, error: err.message, locked: !!err.locked })
+      );
+    return true;
+  }
+
   return false;
 });
 

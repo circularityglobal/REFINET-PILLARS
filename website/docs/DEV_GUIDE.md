@@ -589,6 +589,23 @@ Any `UPDATE` or `DELETE` on these tables will raise an `IntegrityError`. Design 
 
 ## 6. Cryptographic Identity & Signing
 
+### Modules added in 0.5.0
+
+| Module | What it is for |
+|---|---|
+| `core/version.py` | The single version constant. `pyproject.toml`, `PROTOCOL_VERSION` and new `pid.json` files all read it. |
+| `crypto/unlock.py` | Holds an unlocked private key in process memory. The key-encryption password is never written to disk; it arrives from `REFINET_PID_PASSWORD` or a prompt. Use `get_unlocked_key(pid_data)` rather than `get_private_key`. |
+| `crypto/attestation.py` | Witness attestations and service receipts (`sign_witness` / `verify_witness`). |
+| `auth/wallet_sig.py` | `verify_wallet_signature()`: ecrecover first, then EIP-1271 on the chain the message names, for contract wallets. |
+| `db/money.py` | Amounts as integer base units. Fold with `fold_units`, never SQL `SUM()`. |
+| `cli/identity.py` | `pillar identity show / challenge / rebind`. |
+
+Signatures over structured statements are domain-separated: `sign_domain(DOMAIN_X, key, *fields)`
+in `crypto/signing.py`, where the domain is one of `REFINET-RESPONSE-v1`,
+`REFINET-BINDING-v1`, `REFINET-IDENTITY-v3`, `REFINET-WITNESS-v1`,
+`REFINET-ANNOUNCE-v1`, `REFINET-PROXY-TOKEN-v1`. A signature made for one
+purpose can then never be presented as another.
+
 ### PID Lifecycle
 
 ```
@@ -1211,6 +1228,15 @@ PID_FILE    = HOME_DIR / "pid.json"
 PEERS_FILE  = HOME_DIR / "peers.json"
 CONFIG_FILE = HOME_DIR / "config.json"
 
+# Security toggles added in 0.5.0 (config.json; defaults preserve behaviour)
+#   websocket_extension_ids  : [] — when set, only these extension ids may
+#                              open the WebSocket bridge (plus loopback)
+#   websocket_require_origin : false — true refuses clients sending no Origin
+#   discovery_require_signed : false — true drops unsigned mesh announcements
+# Environment:
+#   REFINET_PID_PASSWORD     : unlocks an encrypted key at startup
+#   REFINET_HEADLESS=1       : node has an identity but no wallet (bootstrap)
+
 # Gopher Server
 GOPHER_HOST = "0.0.0.0"
 GOPHER_PORT = 7070
@@ -1412,7 +1438,7 @@ if not str(target).startswith(str(GOPHER_ROOT.resolve())):  # Layer 2: verify bo
 
 ### Overview
 
-- **484 tests** across **33 modules** (479 passed, 5 skipped)
+- **649 tests** across **46 modules** (649 passed, 2 skipped — Tor integration, needs `--integration`)
 - Framework: pytest + pytest-asyncio
 - Configuration: `pytest.ini` with `asyncio_mode = auto`
 

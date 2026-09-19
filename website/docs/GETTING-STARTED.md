@@ -152,6 +152,30 @@ python3 pillar.py --status
 
 Shows: PID, public key, known peers, Tor status, and configuration.
 
+### Identity & Wallet Bindings
+
+```bash
+# Show this Pillar's identity and every wallet binding it carries
+python3 pillar.py identity show
+
+# Re-sign the binding (interactive: prints the message, waits for a signature)
+python3 pillar.py identity rebind --address 0xYourEthAddress --chain 43113
+
+# Scripted: issue a challenge, sign it elsewhere, then submit
+python3 pillar.py identity challenge --address 0xYourEthAddress --chain 43113
+python3 pillar.py identity rebind --address 0xYourEthAddress --signature 0x...
+```
+
+A binding created before 0.5.0 was made from an ordinary sign-in
+signature. It still verifies and stays canonical, but it is not published
+in `/identity/v3.json` until you re-sign the statement that says what it
+means. `identity show` tells you whether yours needs this. It requires
+your wallet, so it can never happen without you.
+
+Signatures must cover the message **exactly** as issued — a shell pipeline
+that adds or trims a newline produces a signature that will not verify.
+Scripts should read the exact bytes from `~/.refinet/pending_binding.json`.
+
 ### Gopherhole Management
 
 ```bash
@@ -215,7 +239,7 @@ python3 pillar.py recovery restore
 
 ---
 
-## Browser Extension (v0.4.0)
+## Browser Extension (v0.5.0)
 
 The REFInet Pillar Bridge is a Manifest v3 browser extension that connects your browser to your local Pillar.
 
@@ -353,13 +377,56 @@ Requires `stem` package and the Tor binary:
   "port": 7070,
   "pillar_name": "My REFInet Pillar",
   "description": "A sovereign node in Gopherspace",
-  "protocol_version": "0.3.0",
+  "protocol_version": "0.5.0",
   "tor_enabled": false,
   "tor_expose_port_70": true,
   "tor_socks_port": 9050,
-  "tor_control_port": 9051
+  "tor_control_port": 9051,
+  "websocket_extension_ids": [],
+  "websocket_require_origin": false,
+  "discovery_require_signed": false
 }
 ```
+
+### Security toggles (added in 0.5.0)
+
+All three default to the behaviour earlier releases had, so an upgrade
+changes nothing until you opt in.
+
+| Key | Default | What turning it on does |
+|---|---|---|
+| `websocket_extension_ids` | `[]` | Only the listed browser-extension ids may open the WebSocket bridge (loopback origins still may). Find the id on `chrome://extensions`. With the list empty, any extension may connect. |
+| `websocket_require_origin` | `false` | Refuses bridge clients that send no `Origin` header. Browsers always send one; non-browser local tools may not. |
+| `discovery_require_signed` | `false` | Drops mesh announcements that carry no signature. Pillars older than 0.5.0 announce unsigned, so turn this on once your mesh has upgraded. Unsigned announcements can never move a known peer's address either way. |
+
+### Extra EVM networks (`~/.refinet/chains.json`)
+
+Ten chains ship by default. Add your own without waiting for a release:
+
+```json
+{
+  "10": {
+    "name": "Optimism",
+    "rpc": "https://mainnet.optimism.io",
+    "symbol": "ETH",
+    "explorer": "https://optimistic.etherscan.io",
+    "aliases": ["optimism"]
+  }
+}
+```
+
+### Encrypted keys and unattended start
+
+When the private key in `pid.json` is encrypted, the Pillar needs the
+password once per start. It is never stored on disk:
+
+```bash
+REFINET_PID_PASSWORD='...' python3 pillar.py     # headless, Docker, systemd
+python3 pillar.py                                # or type it at the prompt
+```
+
+`REFINET_HEADLESS=1` additionally lets a node serve without a wallet
+binding — for a bootstrap node that has an identity but no wallet.
 
 ### Bootstrap Peers (`~/.refinet/peers.json`)
 
@@ -476,9 +543,9 @@ The 5 skips are expected:
 
 - **Codebase:** 14,000+ lines of Python across 76+ files
 - **Browser extension:** 8 files (Manifest v3)
-- **Test suite:** 33 test files, 484 tests (479 passing, 5 skipped)
-- **Gopher routes:** 39 dynamic + 3 static endpoints
-- **Database tables:** 10+
-- **Supported EVM chains:** 5
+- **Test suite:** 46 test files, 649 tests (649 passing, 2 skipped)
+- **Gopher routes:** 42 dynamic + 3 static endpoints
+- **Database tables:** 11+
+- **Supported EVM chains:** 10 (plus any you add)
 - **Optional dependencies:** 5 (all gracefully degrade)
 - **Ports:** 6 (+ Unix socket)

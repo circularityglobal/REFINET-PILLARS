@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install pytest-timeout
+          pip install -e '.[test]'
 
       - name: Run tests
         run: python -m pytest tests/ -v --tb=short -q --timeout=60

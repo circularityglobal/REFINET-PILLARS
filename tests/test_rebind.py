@@ -71,3 +71,56 @@ async def test_rebind_reports_a_locked_key(bridge, monkeypatch):
         "message": "x", "signature": "0x" + "ab" * 65,
     })
     assert result["status"] == "error" and result.get("locked") is True
+
+
+class TestExtensionContract:
+    """The bundled extension speaks this protocol; keep them in step.
+
+    The extension cannot be driven from the Python suite, so the least we
+    can do is fail when the message names drift apart.
+    """
+
+    def _background_js(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parent.parent
+        return (root / "browser-extension" / "background.js").read_text(encoding="utf-8")
+
+    def test_extension_sends_the_message_type_the_bridge_handles(self):
+        js = self._background_js()
+        assert '"rebind-start"' in js, "popup action missing from background.js"
+        assert 'type: "rebind"' in js, "extension must send the bridge's 'rebind' type"
+
+    def test_extension_awaits_the_reply_types_the_bridge_sends(self):
+        js = self._background_js()
+        assert '"rebind_challenge"' in js
+        assert '"rebind_complete"' in js
+
+    @pytest.mark.asyncio
+    async def test_bridge_really_answers_with_those_types(self, bridge):
+        ws, _ = bridge
+        account = Account.create()
+        challenge = await ws._handle_rebind({
+            "type": "rebind", "address": account.address, "chain_id": 43113})
+        assert challenge["type"] == "rebind_challenge"
+        sig = account.sign_message(
+            encode_defunct(text=challenge["message"])).signature.hex()
+        done = await ws._handle_rebind({
+            "type": "rebind", "address": account.address,
+            "message": challenge["message"],
+            "signature": sig if sig.startswith("0x") else "0x" + sig})
+        assert done["type"] == "rebind_complete"
+        assert "binding_id" in done
+
+    def test_extension_handles_a_locked_pillar_key(self):
+        """The bridge answers {locked: true} when the key needs a password."""
+        js = self._background_js()
+        assert "locked" in js
+
+    def test_extension_version_tracks_the_protocol(self):
+        import json
+        from pathlib import Path
+        from core.version import __version__
+        root = Path(__file__).resolve().parent.parent
+        manifest = json.loads(
+            (root / "browser-extension" / "manifest.json").read_text(encoding="utf-8"))
+        assert manifest["version"] == __version__

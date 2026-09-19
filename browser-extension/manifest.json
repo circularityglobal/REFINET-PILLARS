@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "REFInet Pillar Bridge",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Browse Gopherspace through your local REFInet Pillar node with sovereign identity",
   "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": [],

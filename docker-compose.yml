@@ -15,6 +15,11 @@ services:
     environment:
       - REFINET_HOST=0.0.0.0
       - REFINET_PORT=7070
+      # Only needed when the key in REFINET_PID_JSON is encrypted. Both are
+      # read from the host environment, so they stay out of this file:
+      #   REFINET_PID_JSON='...' REFINET_PID_PASSWORD='...' docker compose up
+      - REFINET_PID_JSON
+      - REFINET_PID_PASSWORD
     logging:
       driver: json-file
       options:

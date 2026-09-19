@@ -44,9 +44,15 @@ const authChallengeMsg = document.getElementById("auth-challenge-msg");
 const authSignature = document.getElementById("auth-signature");
 const btnVerifySig = document.getElementById("btn-verify-sig");
 
+const btnRebind = document.getElementById("btn-rebind");
+const authModalTitle = document.getElementById("auth-modal-title");
+
 let history = [];
 let currentSelector = "";
 let currentChallenge = null; // {message, nonce, pid}
+// "signin" opens a session; "rebind" writes a wallet binding. They use the
+// same wallet picker but are never the same signature.
+let modalMode = "signin";
 
 // --- Communication with background ---
 
@@ -117,9 +123,11 @@ btnAuth.addEventListener("click", async () => {
     await checkStatus();
   } else {
     // Open auth modal
-    showAuthModal();
+    showAuthModal("signin");
   }
 });
+
+btnRebind.addEventListener("click", () => showAuthModal("rebind"));
 
 function hideAllAuthSteps() {
   authStepWallets.classList.add("hidden");
@@ -130,7 +138,10 @@ function hideAllAuthSteps() {
   authError.classList.add("hidden");
 }
 
-function showAuthModal() {
+function showAuthModal(mode) {
+  modalMode = mode || "signin";
+  authModalTitle.textContent =
+    modalMode === "rebind" ? "Re-sign Wallet Binding" : "SIWE Authentication";
   authModal.classList.remove("hidden");
   hideAllAuthSteps();
   authStepWallets.classList.remove("hidden");
@@ -213,29 +224,45 @@ async function onWalletSelected(wallet) {
   signingStatusText.textContent = "Connecting to " + wallet.name + "...";
 
   const chainId = parseInt(authChain.value, 10);
+  const rebinding = modalMode === "rebind";
 
-  const resp = await sendMessage({
-    type: "wallet-sign",
-    walletUuid: wallet.uuid,
-    chainId,
-  });
+  const resp = await sendMessage(
+    rebinding
+      ? { type: "rebind-start", walletUuid: wallet.uuid, chainId,
+          bindingType: "deployer" }
+      : { type: "wallet-sign", walletUuid: wallet.uuid, chainId }
+  );
 
   if (!resp || !resp.ok) {
     hideAllAuthSteps();
     authStepWallets.classList.remove("hidden");
-    showAuthError((resp && resp.error) || "Wallet signing failed");
+    const locked = resp && resp.locked;
+    showAuthError(
+      locked
+        ? "The Pillar's key is encrypted and locked. Unlock it on the Pillar " +
+          "(REFINET_PID_PASSWORD or the startup prompt), then try again."
+        : (resp && resp.error) || (rebinding ? "Binding failed" : "Wallet signing failed")
+    );
     return;
   }
 
   // Success
   hideAllAuthSteps();
   authStepResult.classList.remove("hidden");
-  authResultMsg.textContent =
-    "Authenticated! PID-SIWE correlation established. " +
-    "Your browser identity is now cryptographically linked to your Pillar.";
+  if (rebinding) {
+    const binding = (resp.result && resp.result.binding_id) || "";
+    authResultMsg.textContent =
+      "Binding written" + (binding ? " (" + binding.substring(0, 16) + "...)" : "") +
+      ". It is published at /identity/v3.json. Your previous binding is kept — " +
+      "the registry is append-only — but this one is now canonical.";
+  } else {
+    authResultMsg.textContent =
+      "Authenticated! PID-SIWE correlation established. " +
+      "Your browser identity is now cryptographically linked to your Pillar.";
+  }
 
   await checkStatus();
-  setTimeout(hideAuthModal, 3000);
+  setTimeout(hideAuthModal, 4000);
 }
 
 btnCancelSigning.addEventListener("click", () => {

@@ -863,7 +863,7 @@ lynx gopher://localhost:7070           # Using lynx
 | `tests/test_rpc.py` | 5 | RPC gateway connectivity and chain support |
 | `tests/test_tor_integration.py` | 2 | Tor integration smoke tests (requires Tor binary — skipped in CI) |
 
-**Total: 484 tests across 33 modules (479 passed, 5 skipped)** | **Fixtures:** `tests/conftest.py` provides async test fixtures, temporary databases, and mock peer data.
+**Total: 649 tests across 46 modules (649 passed, 2 skipped — the 2 skips are Tor integration tests needing `--integration`)** | **Fixtures:** `tests/conftest.py` provides async test fixtures, temporary databases, and mock peer data.
 
 ---
 
@@ -901,21 +901,41 @@ lynx gopher://localhost:7070           # Using lynx
 | `db/schema.py` | 330 | Full SQLite schema definitions (live + archive, with triggers) |
 | `db/live_db.py` | 536 | Live DB operations, accounting calendar, queries, peer onion tracking |
 | `db/archive_db.py` | 221 | Archive DB operations (yearly summary, monthly snapshots, migration) |
-| `crypto/pid.py` | 234 | PID generation, Ed25519 keypair management, persistence |
-| `crypto/signing.py` | 47 | SHA-256 hashing, Ed25519 signing and verification |
+| `crypto/pid.py` | 241 | PID generation, Ed25519 keypair management, persistence (0600) |
+| `crypto/signing.py` | 194 | Hashing, Ed25519 signing, domain separation, response trailer |
+| `crypto/unlock.py` | 53 | In-process unlock cache for encrypted keys (no password on disk) |
+| `crypto/attestation.py` | 67 | Witness attestations and service receipts (§3.3) |
+| `crypto/binding.py` | 380 | Wallet-to-PID bindings, identity v3 document |
+| `core/version.py` | 9 | The single version constant |
+| `db/money.py` | 75 | Integer base-unit amounts (never floats, never SQL SUM) |
+| `auth/wallet_sig.py` | 112 | Wallet signature verification: ecrecover, then EIP-1271 |
 | `mesh/discovery.py` | 321 | UDP multicast peer announcer, listener, health monitoring |
 | `mesh/replication.py` | 142 | Gopherhole registry sync between peers |
 | `auth/siwe.py` | 90 | EIP-4361 SIWE challenge generation and verification |
 | `auth/session.py` | 198 | Session token creation, validation, revocation |
 | `rpc/gateway.py` | 142 | EVM JSON-RPC proxy (multi-chain, async) |
-| `rpc/chains.py` | 53 | Default chain configurations (5 EVM chains) |
+| `rpc/chains.py` | 118 | Default chain configurations (10 EVM chains, operator-extensible) |
 | `rpc/config.py` | 52 | User-configurable RPC endpoint management |
-| `cli/hole.py` | 109 | Gopherhole CLI subcommands (create, list, verify) |
+| `cli/hole.py` | 121 | Gopherhole CLI subcommands (create, list, verify) |
+| `cli/identity.py` | 310 | Identity CLI: show bindings, issue challenge, rebind |
 | `onboarding/server.py` | 201 | Onboarding Gopher route handlers |
 | `onboarding/wizard.py` | 559 | First-run setup wizard logic |
 | `onboarding/readiness_step.py` | 114 | Dependency readiness check steps |
 | `vault/storage.py` | 200 | Encrypted vault storage backend |
-| `integration/websocket_bridge.py` | 509 | WebSocket bridge for browser extension |
+| `integration/websocket_bridge.py` | 578 | WebSocket bridge for browser extension (origin policy, rebind, SSRF guard) |
+| `integration/ipc_socket.py` | 143 | Unix domain socket IPC for local tooling |
+| `core/readiness.py` | 478 | Optional-dependency readiness checks and install hints |
+| `core/watchdog.py` | 291 | Unified system watchdog (service health, restarts) |
+| `core/vpn_manager.py` | 252 | VPN manager (WireGuard / OpenVPN) |
+| `crypto/profiles.py` | 180 | Multi-identity profile management |
+| `crypto/recovery.py` | 253 | Shamir secret sharing for key recovery |
+| `crypto/zkp.py` | 269 | Key-possession proofs (formerly named SchnorrZKP) |
+| `crypto/tls.py` | 136 | TLS certificate management for GopherS |
+| `crypto/hsm.py` | 215 | Hardware security module integration (optional) |
+| `db/audit.py` | 183 | Hash-chained audit log |
+| `mesh/encrypted_channel.py` | 172 | End-to-end encrypted peer channel |
+| `proxy/forward_proxy.py` | 308 | Privacy forward proxy (SSRF-guarded, signed tokens) |
+| `cli/peer.py` | 102 | Peer management CLI subcommands |
 | `docs/backup.md` | 43 | Backup and recovery guide |
 | `tests/test_routes.py` | 516 | End-to-end TCP route integration tests (41 tests) |
 | `tests/test_websocket_bridge.py` | 364 | WebSocket bridge tests (40 tests) |

@@ -8,6 +8,10 @@ primary_region = "sjc"
   REFINET_HOSTNAME = "gopher.refinet.io"
   REFINET_PORT     = "7070"
 
+# Secrets (never put these in [env] — they would be committed):
+#   flyctl secrets set REFINET_PID_JSON='...'
+#   flyctl secrets set REFINET_PID_PASSWORD='...'   # only if the key is encrypted
+
 # Persistent volume — SQLite ledger survives deploys
 # pid.json is re-injected from secret on each start
 [mounts]

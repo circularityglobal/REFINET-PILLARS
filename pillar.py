@@ -16,6 +16,9 @@ Usage:
     python3 pillar.py hole list [--peers] [--json]
     python3 pillar.py hole verify --pid <pid> --selector /holes/mysite
 
+    python3 pillar.py identity show
+    python3 pillar.py identity rebind --address 0x... --chain 43113
+
 What happens on launch:
     1. Pillar ID (PID) is generated or loaded from ~/.refinet/pid.json
     2. SQLite databases initialized (live + archive)
@@ -563,6 +566,10 @@ def cli():
     from cli.peer import register_peer_subcommands
     register_peer_subcommands(subparsers)
 
+    # 'identity' subcommand group
+    from cli.identity import register_identity_subcommands
+    register_identity_subcommands(subparsers)
+
     # 'profile' subcommand group
     profile_parser = subparsers.add_parser("profile", help="Manage identity profiles")
     profile_sub = profile_parser.add_subparsers(dest="profile_command")
@@ -632,6 +639,11 @@ def cli():
             args.func(args)
         else:
             parser.parse_args(["peer", "--help"])
+    elif args.command == "identity":
+        if hasattr(args, "func"):
+            args.func(args)
+            sys.exit(0)
+        parser.parse_args(["identity", "--help"])
     elif args.command == "run" or args.command is None:
         # --status: show status and exit
         if getattr(args, "status", False):

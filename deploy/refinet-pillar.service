@@ -10,6 +10,12 @@ User=refinet
 Group=refinet
 WorkingDirectory=/opt/refinet
 ExecStart=/usr/bin/python3 /opt/refinet/pillar.py
+# An encrypted key is unlocked at startup from REFINET_PID_PASSWORD; there is
+# nobody at a terminal to type it. Put it in a root-only file:
+#   printf 'REFINET_PID_PASSWORD=...\n' > /etc/refinet/pillar.env
+#   chmod 600 /etc/refinet/pillar.env
+# A plaintext key needs none of this.
+EnvironmentFile=-/etc/refinet/pillar.env
 Restart=on-failure
 RestartSec=10
 WatchdogSec=300

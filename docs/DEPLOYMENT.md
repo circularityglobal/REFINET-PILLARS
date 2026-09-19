@@ -102,6 +102,27 @@ REFINET_PID_JSON Updated 2026-XX-XX
 
 ---
 
+## Step 2b: Encrypted keys and the headless flag
+
+`scripts/headless_start.py` writes `pid.json` through `save_pid()`, so the
+key lands with mode `0600` inside a `0700` `~/.refinet`.
+
+If the key inside `REFINET_PID_JSON` is encrypted, the node cannot unlock
+it on its own — there is nobody at a terminal. Supply the password as a
+second secret, or the entrypoint exits immediately with a clear message:
+
+```bash
+flyctl secrets set REFINET_PID_PASSWORD='...'
+```
+
+The entrypoint also sets `REFINET_HEADLESS=1`. A bootstrap node has an
+identity but no wallet, so it has no binding; the flag lets it serve
+without one instead of carrying a fabricated binding that no peer could
+verify. `/identity/v3.json` on such a node correctly reports zero
+bindings.
+
+---
+
 ## Step 3: Create the Fly.io Application
 
 The `fly.toml` in the repo already defines the app configuration. Create the app on Fly:

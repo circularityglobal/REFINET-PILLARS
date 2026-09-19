@@ -3,6 +3,138 @@
 All notable changes to REFInet Pillar are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.0] — Unreleased
+
+Aligns the Pillar with the TradeSphere bridge proposal (findings F1–F20) without
+breaking existing wire formats, stored records or the browser extension.
+
+### Security
+- `pid.json` is written `0600` and `~/.refinet/` is `0700` (F5)
+- The key-encryption password is no longer stored in `onboarding_state.json`; it
+  unlocks the key in memory only. Legacy state files are migrated on load (F5)
+- An encrypted PID can now start the server: the password is read from
+  `REFINET_PID_PASSWORD` or prompted for at startup
+
+### Changed
+- One version constant (`core/version.py`) feeds `pyproject.toml`,
+  `PROTOCOL_VERSION` and new `pid.json` files (F14)
+- `SchnorrZKP` is renamed `KeyPossessionProof` (alias kept); documentation no
+  longer calls it a zero-knowledge proof (F13)
+
+### Added
+- `sig1` in the response signature trailer and the WebSocket envelope: a
+  domain-separated signature over (pid, selector, time, body hash), so a signed
+  answer cannot be replayed for a different request. `sig` and `hash` keep their
+  original meaning (F9)
+- `crypto/attestation.py`: witness attestations and service receipts (§3.3)
+- `tests/fixtures/pillar-vectors.json`, regenerated with
+  `python3 -m tests.vectors --write`, verified by tests on both sides of the bridge
+- Opt-in namespaced gopherhole selectors: `hole create --namespaced` serves at
+  `/holes/<pid16>/<slug>` so a name cannot collide with another Pillar's (F20)
+
+### Added (Operator tooling)
+- `pillar identity show` — prints every wallet binding, flags one that predates
+  0.5.0, and names the command that replaces it
+- `pillar identity challenge` / `pillar identity rebind` — re-sign a binding from
+  the terminal, interactively or from a script
+- A "Re-sign binding" action in the bundled browser extension, and the
+  settlement networks in its chain picker
+
+### Added (Identity)
+- A binding is its own EIP-4361 statement (§3.1): `I bind this wallet to
+  REFINET Pillar <pid> as its <deployer|operator>`. A sign-in signature can no
+  longer be turned into a binding, and a binding message can no longer open a
+  session (F1)
+- Challenge nonces are registered per Pillar and purpose, and spent on first
+  use whether or not the signature verifies. A message published in one
+  Pillar's identity document is refused by every other Pillar (F3)
+- Each Pillar's SIWE messages carry its own authority and its full PID in
+  `URI`/`Resources`, replacing the shared `refinet://pillar` literal (F3)
+- Contract wallets (Safe, ERC-4337) verify through EIP-1271 on the chain the
+  message names, when `web3` is installed (F4)
+- `/identity/v3.json`: the §3.2 identity document, listing §3.1 bindings with a
+  document signature. `/identity.json` still serves schema 2, unchanged
+- WebSocket `rebind` message: adds a §3.1 binding to an already-onboarded
+  Pillar. Bindings stay append-only; the §3.1 one becomes canonical
+
+### Fixed (Deployment)
+- The headless bootstrap entrypoint writes `pid.json` through `save_pid()`, so
+  it is `0600` there too, and reports the real protocol version instead of a
+  hard-coded `0.3.0`
+- It no longer inserts a synthetic binding that no verifier would accept; a
+  bootstrap node declares `REFINET_HEADLESS=1` and simply has no binding
+- An encrypted key can be supplied a password in Docker, Fly and systemd; the
+  entrypoint fails fast with instructions when it is missing
+- Archived yearly and monthly summaries carry `requests_served`, so request
+  volume survives migration out of the live database
+- Vault item files are written `0600`; proxy tokens gained a domain-separated
+  `sig1` beside the original `signature`
+- `pytest-timeout` is a declared test dependency, so the test command in the
+  README works as written
+
+### Fixed
+- A binding records the chain id the wallet actually signed on, instead of
+  always claiming Ethereum mainnet (F2)
+- Replicated registry records keep their own `registered_at`, so a record now
+  survives more than one hop instead of breaking its own signature (F6)
+- Registry verification checks `pid == SHA-256(pubkey)`, so a record cannot claim
+  a PID whose key it does not hold (F7)
+
+### Added (Mesh & bridge)
+- Mesh announcements are signed over (pid, hostname, port, timestamp) and must
+  be fresh. An unsigned announcement can still introduce an unknown peer, so
+  mixed-version meshes keep working, but it can never move a known peer's
+  address. `discovery_require_signed` refuses unsigned ones outright (F8)
+- `websocket_extension_ids` and `websocket_require_origin` in config.json
+  restrict who may open the bridge. Defaults preserve current behaviour (F15)
+
+### Added (Ledger)
+- `/proof/receipt`: accepts a requester-signed receipt (§3.3). This is now the
+  only way a `service_proofs` row is created (F10). Intake is idempotent (the
+  proof id is derived from the receipt, so re-submitting one is a no-op) and
+  capped per requester and per day, because `service_proofs` cannot be deleted
+  and signatures cost a stranger nothing
+- Spent and expired SIWE challenges are swept by the periodic maintenance task,
+  so the challenge registry cannot grow without bound
+- Amounts are integers in the asset's base units (`amount_units` + `asset_*`
+  columns, folded by `db/money.py`). The `REAL` columns remain for older
+  readers and are unused for new records (F12)
+- Avalanche (43114), Fuji (43113), Base Sepolia (84532), XDC (50) and Apothem
+  (51), plus `~/.refinet/chains.json` so an operator can add a network without
+  a release. Existing chains and endpoints are unchanged (F17)
+
+### Changed (Ledger)
+- Serving a request no longer writes a `daily_tx` row or a self-signed
+  `service_proofs` row — an unbounded, undeletable log any stranger could
+  fill. Volume is counted in `daily_metrics`; `tx_count_today` in status.json
+  and the root menu reports the same number as before (F11)
+- The rate limiter's address table is swept and capped, instead of growing for
+  every address ever seen (F11)
+
+### Fixed
+- `browse_remote` resolves a host and judges the resolved address, then
+  connects to the address it checked. The old string-prefix check passed
+  `0x7f000001`, `2130706433`, `127.1` and `[::ffff:127.0.0.1]`, and blocked
+  names like `fdroid.org` (F16)
+
+### Removed
+- Committed `__pycache__/` files and a local editor settings file (F18)
+- Wallet addresses are no longer announced over multicast: a peer that wants
+  one fetches `/identity.json` and verifies the binding itself (F8)
+
+## [0.4.0] — 2026-03-09
+
+### Changed (Website)
+- All navbar links now open pop-up modals instead of scrolling to sections
+- Unified all 6 documentation pages into a single Docs modal with document switcher sidebar and per-document TOC
+- Replaced separate Whitepaper and Getting Started modals with the unified Docs modal
+- Added "What Is It" modal (6-pillar feature grid) accessible from navbar
+- Added "Community" modal (GitHub, Discord, Gopherspace cards) accessible from navbar
+- Footer links converted to modal triggers matching navbar behavior
+- Removed landing page "What Is It" section (content moved to modal)
+- Removed SPA doc-viewer page route system in favor of modal-only navigation
+- All modals share uniform branded layout (consistent header, backdrop, close button, animation)
+
 ## [0.3.0] — 2026-03-09
 
 ### Fixed (Audit Remediation)

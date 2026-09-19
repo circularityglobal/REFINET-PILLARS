@@ -90,7 +90,12 @@ def store_item(name: str, data: bytes, password: str, pid: str,
     encrypted = _encrypt_data(data, password)
     file_hash = hashlib.sha256(encrypted).hexdigest()
 
-    file_path.write_bytes(encrypted)
+    # Owner-only, like pid.json. The bytes are already AES-256-GCM
+    # encrypted; the mode keeps a copy out of other users' reach too.
+    fd = os.open(str(file_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "wb") as fh:
+        fh.write(encrypted)
+    os.chmod(file_path, 0o600)
 
     # Record metadata in SQLite
     with _connect() as conn:

@@ -343,6 +343,7 @@ CREATE TABLE IF NOT EXISTS yearly_summary (
     total_volume     REAL DEFAULT 0.0,
     avg_latency_ms   REAL DEFAULT 0.0,
     total_content_served INTEGER DEFAULT 0,
+    total_requests_served INTEGER DEFAULT 0,  -- from daily_metrics.requests_served
     total_uptime_seconds INTEGER DEFAULT 0,
     peers_seen       INTEGER DEFAULT 0,
     PRIMARY KEY (accounting_year, pid)
@@ -354,6 +355,7 @@ CREATE TABLE IF NOT EXISTS monthly_snapshot (
     accounting_month INTEGER NOT NULL,
     pid              TEXT NOT NULL,
     tx_count         INTEGER DEFAULT 0,
+    requests_served  INTEGER DEFAULT 0,
     volume           REAL DEFAULT 0.0,
     snapshot_data    TEXT,                   -- JSON blob of compressed daily data
     content_hash     TEXT,                   -- Hash of the snapshot for verification
