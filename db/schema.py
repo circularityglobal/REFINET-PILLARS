@@ -22,7 +22,11 @@ CREATE TABLE IF NOT EXISTS daily_tx (
     tx_id           TEXT PRIMARY KEY,
     dapp_id         TEXT NOT NULL,
     pid             TEXT NOT NULL,
-    amount          REAL DEFAULT 0.0,
+    amount          REAL DEFAULT 0.0,      -- DEPRECATED: floats cannot hold 1e18
+    amount_units    TEXT,                   -- Canonical: decimal string, base units
+    asset_chain_id  INTEGER,                -- Chain the asset lives on
+    asset_address   TEXT,                   -- Contract, or 0x0 for the native coin
+    asset_decimals  INTEGER,
     token_type      TEXT DEFAULT 'REFI',   -- CIFI or REFI
     selector        TEXT,                   -- Gopher selector that triggered tx
     mesh_peer_pid   TEXT,                   -- Peer involved (if any)
@@ -45,6 +49,7 @@ CREATE TABLE IF NOT EXISTS daily_metrics (
     avg_latency_ms   REAL DEFAULT 0.0,
     peers_connected  INTEGER DEFAULT 0,
     content_served   INTEGER DEFAULT 0,     -- Number of Gopher requests served
+    requests_served  INTEGER DEFAULT 0,     -- Atomic per-day request counter
     uptime_seconds   INTEGER DEFAULT 0,
     PRIMARY KEY (accounting_day, accounting_month, accounting_year, pid)
 );
@@ -56,7 +61,8 @@ CREATE TABLE IF NOT EXISTS peers (
     hostname        TEXT,
     port            INTEGER DEFAULT 7070,
     last_seen       DATETIME,
-    stake_amount    REAL DEFAULT 0.0,
+    stake_amount    REAL DEFAULT 0.0,       -- DEPRECATED (float)
+    stake_units     TEXT,                   -- Canonical: base units as decimal string
     pillar_name     TEXT,
     protocol_version TEXT,
     status           TEXT DEFAULT 'unknown',    -- online | degraded | offline | unknown
@@ -80,9 +86,12 @@ CREATE TABLE IF NOT EXISTS content_index (
 -- Token balances and staking state
 CREATE TABLE IF NOT EXISTS token_state (
     pid             TEXT PRIMARY KEY,
-    cifi_staked     REAL DEFAULT 0.0,
-    refi_balance    REAL DEFAULT 0.0,
-    refi_issued     REAL DEFAULT 0.0,
+    cifi_staked     REAL DEFAULT 0.0,       -- DEPRECATED (float)
+    refi_balance    REAL DEFAULT 0.0,       -- DEPRECATED (float)
+    refi_issued     REAL DEFAULT 0.0,       -- DEPRECATED (float)
+    cifi_staked_units TEXT,                 -- Canonical: base units as decimal string
+    refi_balance_units TEXT,
+    refi_issued_units  TEXT,
     license_active  INTEGER DEFAULT 0,      -- 1 = licensed, 0 = not
     license_tier    TEXT DEFAULT 'free',    -- free | pro | enterprise
     license_expires DATETIME,
@@ -154,14 +163,43 @@ BEGIN
 END;
 
 -- =========================================================================
+-- SIWE NONCES — challenges this Pillar issued
+--
+-- A signature is only accepted against a nonce this Pillar issued, for the
+-- purpose it was issued for, and only once. Without this table a message
+-- published in one Pillar's identity document could be replayed as a login
+-- at another Pillar.
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS siwe_nonces (
+    nonce       TEXT PRIMARY KEY,         -- 16-byte random hex
+    purpose     TEXT NOT NULL,            -- 'login' | 'binding'
+    pid         TEXT NOT NULL,            -- Pillar that issued it
+    address     TEXT,                     -- address the challenge was issued to
+    chain_id    INTEGER,
+    issued_at   TEXT NOT NULL,            -- ISO 8601
+    expires_at  TEXT NOT NULL,            -- ISO 8601
+    spent_at    TEXT                      -- ISO 8601, set on first use
+);
+
+CREATE INDEX IF NOT EXISTS idx_siwe_nonces_expires
+    ON siwe_nonces (expires_at);
+
+-- =========================================================================
 -- SERVICE PROOFS — append-only proof of work/service delivery
 -- =========================================================================
+-- A proof of service is a RECEIPT FROM THE REQUESTER: requester_pid signs
+-- that it received these bytes. A row the server signed for itself is an
+-- assertion, not work anyone will pay for, so nothing writes those any more.
 CREATE TABLE IF NOT EXISTS service_proofs (
     proof_id    TEXT PRIMARY KEY,
-    pid         TEXT NOT NULL,
+    pid         TEXT NOT NULL,              -- the serving Pillar
     service     TEXT NOT NULL,              -- service identifier (e.g. 'gopher.serve', 'mesh.relay')
     proof_hash  TEXT NOT NULL,              -- SHA-256 of proof payload
-    signature   TEXT NOT NULL,              -- Ed25519 signature by originating PID
+    signature   TEXT NOT NULL,              -- the requester's Ed25519 signature
+    requester_pid    TEXT,                  -- who signed the receipt
+    requester_pubkey TEXT,                  -- their Ed25519 public key
+    resource         TEXT,                  -- what was served
+    receipt_json     TEXT,                  -- the full §3.3 receipt object
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -184,7 +222,11 @@ CREATE TABLE IF NOT EXISTS settlements (
     settlement_id TEXT PRIMARY KEY,
     payer_pid     TEXT NOT NULL,
     payee_pid     TEXT NOT NULL,
-    amount        REAL NOT NULL,
+    amount        REAL NOT NULL,            -- DEPRECATED (float)
+    amount_units   TEXT,                    -- Canonical: base units as decimal string
+    asset_chain_id INTEGER,
+    asset_address  TEXT,
+    asset_decimals INTEGER,
     token_type    TEXT NOT NULL,            -- CIFI or REFI
     proof_id      TEXT REFERENCES service_proofs(proof_id),
     created_at    DATETIME DEFAULT CURRENT_TIMESTAMP

@@ -49,7 +49,7 @@ The platform is designed for **offline-first, LAN-capable, sovereign operation**
 | Mesh peer discovery (UDP multicast) | Complete | Auto-discovery on LAN, 30s announcement interval |
 | Gopherhole registry replication | Complete | Signature-verified sync every 5 minutes |
 | SIWE authentication (EIP-4361) | Complete | Challenge generation, session management, enforced on broadcast |
-| EVM RPC gateway (multi-chain) | Complete | 5 chains, 4 Gopher-routed operations, graceful degradation |
+| EVM RPC gateway (multi-chain) | Complete | 10 chains, 4 Gopher-routed operations, graceful degradation |
 | Content indexing | Complete | Every served response indexed by selector, hash, and signature |
 | Rate limiting | Complete | Per-IP sliding window (100/500 req/60s), Tor-aware DoS protection |
 | DApp definition system | Complete | Parser, directory listing, detail views |
@@ -482,7 +482,9 @@ All routes are handled by `GopherServer._route()` in `core/gopher_server.py`.
 | `/welcome` | `build_welcome_menu()` | Welcome / onboarding landing |
 | `/pillar/status` | `_build_pillar_status_response()` | Detailed pillar status |
 | `/identity` | `build_identity_menu()` | Pillar identity (text format) |
-| `/identity.json` | JSON envelope | Deployer binding identity (JSON for browser extension) |
+| `/identity.json` | JSON envelope | Deployer binding identity, schema 2 (JSON for browser extension) |
+| `/identity/v3.json` | Signed JSON document | Identity document v3: authority, wallet bindings, document signature |
+| `/proof/receipt` | `_handle_receipt()` | Accepts a requester-signed service receipt (type-7 JSON query) |
 | `/identity/verify` | Deployer binding verification | Verify a PID against public key |
 | `/vault` | `build_vault_menu()` | Encrypted vault access |
 | `/settings` | `build_settings_menu()` | Pillar configuration |
@@ -491,8 +493,8 @@ All routes are handled by `GopherServer._route()` in `core/gopher_server.py`.
 | `/health/services` | JSON service status | Per-service health breakdown (machine-readable) |
 | `/onboarding/readiness` | Readiness check | First-run readiness status |
 | `/onboarding/readiness/install` | Install helper | Guided dependency installation |
-| `/auth/zkp-challenge` | ZKP challenge | Zero-knowledge proof challenge generation |
-| `/auth/zkp-verify` | ZKP verify | Zero-knowledge proof verification |
+| `/auth/zkp-challenge` | Key-proof challenge | Key-possession proof challenge (route name kept for compatibility) |
+| `/auth/zkp-verify` | Key-proof verify | Key-possession proof verification |
 
 ### Static Routes (served from `gopherroot/`)
 
@@ -843,7 +845,7 @@ lynx gopher://localhost:7070           # Using lynx
 | `tests/test_gopherholes.py` | 13 | Gopherhole creation, validation, signature verification, peer health |
 | `tests/test_gopher_client.py` | 13 | Async Gopher client (fetch, ping, SSRF protection) |
 | `tests/test_encrypted_channel.py` | 13 | Encrypted channel communication |
-| `tests/test_zkp.py` | 12 | Zero-knowledge proof auth (challenge, verify) |
+| `tests/test_zkp.py` | 12 | Key-possession proof auth (challenge, verify) |
 | `tests/test_vpn_manager.py` | 12 | VPN manager lifecycle |
 | `tests/test_gophermap_parser.py` | 12 | Gopher menu parsing (all item types, edge cases) |
 | `tests/test_hsm.py` | 10 | Hardware security module integration |
@@ -931,7 +933,7 @@ lynx gopher://localhost:7070           # Using lynx
 | `tests/test_gopherholes.py` | 366 | Gopherhole tests (13 tests) |
 | `tests/test_gopher_client.py` | 99 | Gopher client tests (13 tests) |
 | `tests/test_encrypted_channel.py` | 139 | Encrypted channel tests (13 tests) |
-| `tests/test_zkp.py` | 102 | ZKP auth tests (12 tests) |
+| `tests/test_zkp.py` | 102 | Key-possession proof tests (12 tests) |
 | `tests/test_vpn_manager.py` | 84 | VPN manager tests (12 tests) |
 | `tests/test_gophermap_parser.py` | 97 | Gopher menu parser tests (12 tests) |
 | `tests/test_hsm.py` | 59 | HSM integration tests (10 tests) |

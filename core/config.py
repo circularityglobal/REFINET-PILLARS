@@ -65,7 +65,7 @@ DISCOVERY_INTERVAL_SEC = 30
 # Protocol Version
 # ---------------------------------------------------------------------------
 PROTOCOL_NAME = "REFInet"
-PROTOCOL_VERSION = "0.3.0"
+from core.version import __version__ as PROTOCOL_VERSION  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Tor Hidden Service
@@ -99,10 +99,29 @@ WEBSOCKET_ALLOWED_ORIGINS = [
     "http://127.0.0.1",       # Local development
 ]
 
+# The bridge mints sessions and signs responses, so it is an authority, and
+# an authority's front door should list who may knock. These two settings
+# tighten it; both default to the historical behaviour so an existing
+# install (where an unpacked extension has a random id) keeps working.
+#
+#   websocket_extension_ids: ["abcdef..."]  — only these extensions, plus loopback
+#   websocket_require_origin: true          — refuse clients that send no Origin
+WEBSOCKET_DEFAULTS = {
+    "websocket_extension_ids": [],
+    "websocket_require_origin": False,
+}
+
 
 def ensure_dirs():
-    """Create all required directories on first run."""
+    """Create all required directories on first run.
+
+    HOME_DIR holds the Pillar's private key, so it is owner-only (0700).
+    """
     HOME_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(HOME_DIR, 0o700)
+    except OSError:
+        pass  # Read-only mounts etc. — never block startup on a chmod
     DB_DIR.mkdir(parents=True, exist_ok=True)
     PROFILES_DIR.mkdir(parents=True, exist_ok=True)
     VAULT_DIR.mkdir(parents=True, exist_ok=True)
@@ -115,9 +134,12 @@ def load_config() -> dict:
         try:
             with open(CONFIG_FILE) as f:
                 cfg = json.load(f)
-            # Merge Tor defaults for any missing keys
+            # Merge defaults for any missing keys
             for k, v in TOR_DEFAULTS.items():
                 cfg.setdefault(k, v)
+            for k, v in WEBSOCKET_DEFAULTS.items():
+                cfg.setdefault(k, v)
+            cfg.setdefault("discovery_require_signed", False)
             return cfg
         except (json.JSONDecodeError, OSError):
             pass  # Fall through to recreate defaults
@@ -129,6 +151,8 @@ def load_config() -> dict:
         "protocol_version": PROTOCOL_VERSION,
     }
     defaults.update(TOR_DEFAULTS)
+    defaults.update(WEBSOCKET_DEFAULTS)
+    defaults["discovery_require_signed"] = False
     with open(CONFIG_FILE, "w") as f:
         json.dump(defaults, f, indent=2)
     return defaults

@@ -46,11 +46,11 @@ Each Pillar is:
 |  Server   |  Ledger   |  Crypto    |  Discovery   |
 | TCP:7070  | Live+Arc  | Ed25519    |  Multicast   |
 +-----------+-----------+------------+--------------+
-|       DApp Runtime + EVM RPC Gateway (5 chains)   |
+|       DApp Runtime + EVM RPC Gateway (10 chains)   |
 +---------------------------------------------------+
 |     Browser Extension v0.4.0 (WebSocket Bridge)   |
 +---------------------------------------------------+
-|  Encrypted Vault | ZKP Auth | Shamir Recovery     |
+|  Encrypted Vault | Key Proof | Shamir Recovery    |
 +---------------------------------------------------+
 |  Transport: Wi-Fi Mesh / LAN / Internet / Tor     |
 +---------------------------------------------------+
@@ -139,21 +139,21 @@ refinet-pillar/
 ├── Dockerfile               # Container image
 ├── docker-compose.yml       # One-command deployment
 ├── core/                    # Gopher server, menu builder, config
-├── crypto/                  # Ed25519 PID, signing, ZKP
+├── crypto/                  # Ed25519 PID, signing, key-possession proof
 ├── db/                      # SQLite ledger (live + archive)
-├── auth/                    # SIWE, sessions, encrypted vault
+├── auth/                    # SIWE challenges, sessions
 ├── mesh/                    # Peer discovery, replication
-├── rpc/                     # EVM JSON-RPC gateway (5 chains)
+├── rpc/                     # EVM JSON-RPC gateway (10 chains)
 ├── cli/                     # CLI subcommands
 ├── proxy/                   # Privacy proxy (SSRF-protected)
-├── onboarding/             # First-run setup wizard & readiness checks
-├── vault/                  # Encrypted storage backend
+├── onboarding/              # First-run setup wizard & readiness checks
+├── vault/                   # Encrypted personal file storage
 ├── integration/             # Cross-module integration
 ├── scripts/                 # Deployment & release scripts
-├── tests/                   # 484 tests across 33 modules
+├── tests/                   # pytest suite
 ├── browser-extension/       # Chrome extension v0.4.0
 ├── gopherroot/              # Served Gopher content
-├── website/                # Landing page & curl installer
+├── website/                 # Landing page & curl installer
 ├── deploy/                  # systemd service + install script
 ├── docs/                    # Wire formats, backup guide
 └── fly.toml                 # Fly.io deployment config

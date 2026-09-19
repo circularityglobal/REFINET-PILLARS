@@ -62,7 +62,7 @@ Both options give you a fully operational Pillar with identity, database, mesh d
 |---------|---------|--------------------------|
 | `eth-account>=0.10.0` | SIWE wallet authentication | No wallet sign-in |
 | `websockets>=12.0` | Browser extension bridge | No browser extension support |
-| `web3>=6.0.0` | EVM RPC gateway (5 chains) | No on-chain queries or tx broadcast |
+| `web3>=6.0.0` | EVM RPC gateway (10 chains) | No on-chain queries or tx broadcast |
 | `stem>=1.8.2` | Tor hidden services | No .onion address |
 | `qrcode[pil]>=7.4.2` | QR codes for SIWE challenges | No QR code generation |
 
@@ -332,7 +332,7 @@ Requires `stem` package and the Tor binary:
 - Discoverable via `/dapps` route
 
 ### Cryptographic Authentication
-- Schnorr ZKP: prove knowledge of private key without revealing it
+- Key-possession proof: sign a derived challenge to prove you hold the private key (a signature-based proof, not zero-knowledge)
 - Membership attestation: prove your PID is a member of a set (authenticated, not anonymous)
 - Session establishment from verified proof (alternative to SIWE)
 

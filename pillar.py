@@ -37,14 +37,17 @@ import os
 import signal
 import sys
 
-from core.config import GOPHER_HOST, GOPHER_PORT, PID_LOCKFILE, load_config
+from core.config import GOPHER_HOST, GOPHER_PORT, PID_LOCKFILE, PROTOCOL_VERSION, load_config
 from core.gopher_server import GopherServer
 from core.tor_manager import TorManager
 from crypto.pid import get_or_create_pid, get_short_pid, is_encrypted
 from mesh.discovery import PeerAnnouncer, PeerListener, periodic_health_check
 from mesh.replication import periodic_replication
 from db.archive_db import periodic_archival
-from db.live_db import init_live_db, reset_peer_statuses_to_unknown, checkpoint_live_db
+from db.live_db import (
+    init_live_db, reset_peer_statuses_to_unknown, checkpoint_live_db,
+    purge_expired_siwe_nonces,
+)
 from db.archive_db import checkpoint_archive_db
 from core.watchdog import SystemWatchdog
 
@@ -75,6 +78,33 @@ def check_dependencies(config: dict = None) -> list:
     return statuses
 
 
+def unlock_pid_or_exit(pid_data: dict) -> None:
+    """Unlock an encrypted PID for this process, or exit with instructions.
+
+    The password comes from ``REFINET_PID_PASSWORD`` (headless / Docker) or
+    an interactive prompt. It is held only in memory (crypto/unlock.py).
+    """
+    from crypto.unlock import is_unlocked, unlock
+
+    if is_unlocked(pid_data):
+        return  # Already unlocked in this process (e.g. by the onboarding wizard)
+
+    log = logging.getLogger("refinet")
+    password = os.environ.get("REFINET_PID_PASSWORD")
+    if password is None and sys.stdin.isatty():
+        import getpass
+        password = getpass.getpass("Enter PID password to unlock this Pillar: ")
+    if not password:
+        log.error("Private key is encrypted. Set REFINET_PID_PASSWORD or run "
+                  "pillar.py from a terminal to enter the password.")
+        sys.exit(1)
+    try:
+        unlock(pid_data, password)
+    except ValueError as e:
+        log.error(f"Cannot unlock private key: {e}")
+        sys.exit(1)
+
+
 async def main(host: str, port: int, gopher_port: int, enable_mesh: bool,
                enable_gopher: bool = True):
     """Launch all Pillar services."""
@@ -103,6 +133,8 @@ async def main(host: str, port: int, gopher_port: int, enable_mesh: bool,
             "Private key is stored UNENCRYPTED. "
             "Run 'pillar.py profile create --name <name>' to create an encrypted profile."
         )
+    else:
+        unlock_pid_or_exit(pid_data)
 
     # Ensure DB is initialized and peer statuses are reset to unknown
     # so the first health check cycle starts from a clean state.
@@ -309,7 +341,7 @@ def show_status():
 
 
 async def periodic_wal_checkpoint(interval_hours: int = 6):
-    """Background task: checkpoint WAL files periodically."""
+    """Background task: checkpoint WAL files and sweep spent challenges."""
     logger = logging.getLogger("refinet.checkpoint")
     await asyncio.sleep(interval_hours * 3600)
     while True:
@@ -319,6 +351,14 @@ async def periodic_wal_checkpoint(interval_hours: int = 6):
             logger.debug("WAL checkpoint completed")
         except Exception as e:
             logger.warning(f"WAL checkpoint error: {e}")
+        try:
+            # Challenges are single-use and short-lived; the spent rows are
+            # not a record of anything, so they must not accumulate.
+            removed = purge_expired_siwe_nonces()
+            if removed:
+                logger.debug(f"Purged {removed} expired SIWE challenges")
+        except Exception as e:
+            logger.warning(f"Challenge purge error: {e}")
         await asyncio.sleep(interval_hours * 3600)
 
 
@@ -442,7 +482,7 @@ def _handle_recovery_command(args):
             "public_key": pub_bytes.hex(),
             "private_key": priv_hex,
             "created_at": int(time.time()),
-            "protocol": "REFInet-v0.3",
+            "protocol": PROTOCOL_VERSION,
             "key_store": "software",
         }
 

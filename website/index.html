@@ -62,7 +62,7 @@
           <div class="whitepaper-deco" aria-hidden="true">WHITE<br>PAPER</div>
           <div class="whitepaper-content">
             <h3>Protocol Specification</h3>
-            <p>The REFInet Pillar protocol whitepaper covers the full wire format, mesh replication algorithm, PID key derivation, ZKP authentication flow, and EVM gateway specification.</p>
+            <p>The REFInet Pillar protocol whitepaper covers the full wire format, mesh replication algorithm, PID key derivation, key-possession authentication flow, and EVM gateway specification.</p>
             <a href="#" class="btn btn-primary" data-modal="docs-modal" data-doc="WHITEPAPER">&#8595; Read Whitepaper</a>
           </div>
         </div>
@@ -96,7 +96,7 @@
           <a href="#" class="card reveal" data-modal="docs-modal" data-doc="WHITEPAPER">
             <div class="card-icon" aria-hidden="true">&#128220;</div>
             <h3>Whitepaper</h3>
-            <p>Protocol specification covering wire format, mesh replication, and ZKP auth.</p>
+            <p>Protocol specification covering wire format, mesh replication, and key-possession auth.</p>
             <span class="card-link">Read &rarr;</span>
           </a>
           <a href="#" class="card reveal" data-modal="docs-modal" data-doc="SECURITY">
@@ -176,7 +176,7 @@
             <div class="arch-layer-icon">4</div>
             <div class="arch-layer-content">
               <h3>Storage &amp; Vault</h3>
-              <p>SQLite WAL-mode database for registries. Encrypted local vault with ZKP authentication. Shamir Secret Sharing splits recovery keys across trusted parties.</p>
+              <p>SQLite WAL-mode database for registries. Encrypted local vault with key-possession authentication. Shamir Secret Sharing splits recovery keys across trusted parties.</p>
             </div>
           </div>
           <div class="arch-layer">
@@ -368,7 +368,7 @@ refinet-pillar run</pre>
           </div>
           <div class="modal-card">
             <h3>Tor &amp; Privacy</h3>
-            <p>Optional Tor hidden service gives your node an .onion address. Combined with the encrypted vault and ZKP auth, you control your privacy completely.</p>
+            <p>Optional Tor hidden service gives your node an .onion address. Combined with the encrypted vault and key-possession auth, you control your privacy completely.</p>
           </div>
           <div class="modal-card">
             <h3>Gopher Protocol</h3>
@@ -376,7 +376,7 @@ refinet-pillar run</pre>
           </div>
           <div class="modal-card">
             <h3>Encrypted Vault</h3>
-            <p>Local secret storage with zero-knowledge proof authentication and Shamir Secret Sharing for recovery. Your keys never leave your machine.</p>
+            <p>Local secret storage with key-possession proof authentication and Shamir Secret Sharing for recovery. Your keys never leave your machine.</p>
           </div>
         </div>
         <div style="text-align:center;margin-top:28px">

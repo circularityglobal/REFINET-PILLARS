@@ -1,0 +1,72 @@
+{
+  "binding_identity_v3": {
+    "binding": {
+      "binding_id": "271dd7f1f29cefc7bb6b1d572d7c58737717c6f152a9d8ad0d5ddc6d79827b93",
+      "binding_type": "deployer",
+      "chain_id": 43113,
+      "created_at": "2026-09-19T06:40:00+00:00",
+      "evm_address": "0x18A6d01B0d298EB883f11673173f85911A653a2e",
+      "pid": "53890bbbe359e4be49ff31db769510b2827b51ae679f0485f0557b6b02e7e28e",
+      "pid_signature": "e1b2cca1125ebcbae4a0d3e2c25802df77ba3fbed2d2a875639d39013d3a0502dd9ca87014c810ae115ce6f838a361e1cbd667fcab8c4da50d2b7f1e6691fa03",
+      "public_key": "07dd88d0fdf6ab2946f1f178fdeb7482fc9e306c389b77642686e1e66a6af233",
+      "siwe_message": "53890bbbe359e4be49ff31db769510b2827b51ae679f0485f0557b6b02e7e28e.pillar.refinet wants you to sign in with your Ethereum account:\n0x18A6d01B0d298EB883f11673173f85911A653a2e\n\nI bind this wallet to REFINET Pillar 53890bbbe359e4be49ff31db769510b2827b51ae679f0485f0557b6b02e7e28e as its deployer\n\nURI: refinet://pillar/53890bbbe359e4be49ff31db769510b2827b51ae679f0485f0557b6b02e7e28e\nVersion: 1\nChain ID: 43113\nNonce: 00112233445566778899aabbccddeeff\nIssued At: 2026-09-19T06:40:00+00:00\nExpiration Time: 2026-09-19T06:50:00+00:00\nResources:\n- refinet://pillar/53890bbbe359e4be49ff31db769510b2827b51ae679f0485f0557b6b02e7e28e\n- https://tradesphere.example/company/42",
+      "siwe_signature": "0xb5f651b1e07e90445df712a696805212ed13a28d15940db67ff939ad12b2cd3f5709237175abcc7bf99b037a6875a51a32f807c537696032f9677a8dd1efbbdd1b"
+    },
+    "identity_v3": {
+      "authority": "53890bbbe359e4be49ff31db769510b2827b51ae679f0485f0557b6b02e7e28e.pillar.refinet",
+      "bindings": [
+        {
+          "binding_id": "271dd7f1f29cefc7bb6b1d572d7c58737717c6f152a9d8ad0d5ddc6d79827b93",
+          "chain_id": 43113,
+          "created_at": "2026-09-19T06:40:00+00:00",
+          "evm_address": "0x18A6d01B0d298EB883f11673173f85911A653a2e",
+          "pid_signature": "e1b2cca1125ebcbae4a0d3e2c25802df77ba3fbed2d2a875639d39013d3a0502dd9ca87014c810ae115ce6f838a361e1cbd667fcab8c4da50d2b7f1e6691fa03",
+          "siwe_message": "53890bbbe359e4be49ff31db769510b2827b51ae679f0485f0557b6b02e7e28e.pillar.refinet wants you to sign in with your Ethereum account:\n0x18A6d01B0d298EB883f11673173f85911A653a2e\n\nI bind this wallet to REFINET Pillar 53890bbbe359e4be49ff31db769510b2827b51ae679f0485f0557b6b02e7e28e as its deployer\n\nURI: refinet://pillar/53890bbbe359e4be49ff31db769510b2827b51ae679f0485f0557b6b02e7e28e\nVersion: 1\nChain ID: 43113\nNonce: 00112233445566778899aabbccddeeff\nIssued At: 2026-09-19T06:40:00+00:00\nExpiration Time: 2026-09-19T06:50:00+00:00\nResources:\n- refinet://pillar/53890bbbe359e4be49ff31db769510b2827b51ae679f0485f0557b6b02e7e28e\n- https://tradesphere.example/company/42",
+          "siwe_signature": "0xb5f651b1e07e90445df712a696805212ed13a28d15940db67ff939ad12b2cd3f5709237175abcc7bf99b037a6875a51a32f807c537696032f9677a8dd1efbbdd1b",
+          "type": "deployer"
+        }
+      ],
+      "document_signature": "88fe425d0ed283ae25db80784d6edde18cc015ddabbab3fa710dfe63cd30859de672eee12e1aa5ebb33b8820cdfb5c0e38024d423ba6b581db39430178785809",
+      "pid": "53890bbbe359e4be49ff31db769510b2827b51ae679f0485f0557b6b02e7e28e",
+      "protocol": "0.5.0",
+      "public_key": "07dd88d0fdf6ab2946f1f178fdeb7482fc9e306c389b77642686e1e66a6af233",
+      "schema_version": 3
+    },
+    "nonce": "00112233445566778899aabbccddeeff",
+    "wallet_address": "0x18A6d01B0d298EB883f11673173f85911A653a2e"
+  },
+  "pillar": {
+    "pid": "53890bbbe359e4be49ff31db769510b2827b51ae679f0485f0557b6b02e7e28e",
+    "public_key": "07dd88d0fdf6ab2946f1f178fdeb7482fc9e306c389b77642686e1e66a6af233"
+  },
+  "registry_record": {
+    "name": "Vector Hole",
+    "pid": "53890bbbe359e4be49ff31db769510b2827b51ae679f0485f0557b6b02e7e28e",
+    "pubkey_hex": "07dd88d0fdf6ab2946f1f178fdeb7482fc9e306c389b77642686e1e66a6af233",
+    "registered_at": "2026-09-19",
+    "selector": "/holes/vector",
+    "signature": "7e374bd564c887205eef97413beb31cf8182392c3aeac2f8d9e737db7bc69413d3ac8e4749fabac0c7d7900d7645cf90253ec5e210d278ac422fad7862f0730b",
+    "signing_payload": "53890bbbe359e4be49ff31db769510b2827b51ae679f0485f0557b6b02e7e28e:/holes/vector:Vector Hole:2026-09-19"
+  },
+  "response_block": {
+    "body": "iHello from the vector Pillar\tfake\t(NULL)\t0\r\n.\r\n",
+    "envelope_preimage_hex": "524546494e45542d524553504f4e53452d7631353338393062626265333539653462653439666633316462373639353130623238323762353161653637396630343835663035353762366230326537653238650a2f686f6c65732f766563746f722f524541444d450a313738393830303030300a31643365336637336331393165633131373931333130373534633463336331333861663562373037653533306466386162396636616637343634306163633863",
+    "hash": "1d3e3f73c191ec11791310754c4c3c138af5b707e530df8ab9f6af74640acc8c",
+    "response": "iHello from the vector Pillar\tfake\t(NULL)\t0\r\n.\r\n\r\n---BEGIN REFINET SIGNATURE---\r\npid:53890bbbe359e4be49ff31db769510b2827b51ae679f0485f0557b6b02e7e28e\r\npubkey:07dd88d0fdf6ab2946f1f178fdeb7482fc9e306c389b77642686e1e66a6af233\r\nsig:36e45394f0c5a61c1b0c551bfe157fff6ec86deef9e4518a5ef2270b8f8b1c1e63ff8f191917b212fba727d2a6e96d5fe05528c905fe5f37191a9e312f64430d\r\nhash:1d3e3f73c191ec11791310754c4c3c138af5b707e530df8ab9f6af74640acc8c\r\nv:1\r\nselector:/holes/vector/README\r\ntime:1789800000\r\nsig1:f544dd64b2d459c21b1856f7dbc8ec0318b494d089f432b5b0060e7e264a55ada048eb15d19c4c759ab9af0aa845f1186e33cbe98eb0340f93269f5b19918207\r\n---END REFINET SIGNATURE---\r\n",
+    "selector": "/holes/vector/README",
+    "time": 1789800000
+  },
+  "version": 1,
+  "witness_attestation": {
+    "attestation": {
+      "fetched_at": 1789800000,
+      "hash": "7b21e9375c326e87df50b2dab53775d51ddb37ba2de72d6cff9ad295b999f971",
+      "pid": "53890bbbe359e4be49ff31db769510b2827b51ae679f0485f0557b6b02e7e28e",
+      "resource": "https://api.tradesphere.example/nft/c/43113/f/0xFactory/7/12",
+      "sig": "638651adaa89499b7bba04fabdd8db22d55ede4647880a7630e14171e0593c0c844c2c76e0563db1f4fffe02a12e43211bd5a63c645197a27e9e9f2e374c070f",
+      "status": "match",
+      "v": 1
+    },
+    "public_key": "07dd88d0fdf6ab2946f1f178fdeb7482fc9e306c389b77642686e1e66a6af233"
+  }
+}

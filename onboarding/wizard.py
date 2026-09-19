@@ -29,7 +29,8 @@ from pathlib import Path
 
 from core.config import HOME_DIR, PID_FILE, ensure_dirs
 from core.menu_builder import info_line, menu_link, search_link, separator
-from crypto.pid import generate_pid, save_pid, load_pid, get_private_key
+from crypto.pid import generate_pid, save_pid, load_pid, is_encrypted
+from crypto.unlock import unlock, is_unlocked, get_unlocked_key
 from crypto.binding import (
     create_binding,
     binding_exists,
@@ -37,6 +38,7 @@ from crypto.binding import (
     get_deployer_binding,
 )
 from auth.session import create_challenge
+from auth.siwe import PURPOSE_BINDING
 
 logger = logging.getLogger("refinet.onboarding")
 
@@ -76,20 +78,43 @@ _DEFAULT_STATE: dict = {
 
 
 def get_onboarding_state() -> dict:
-    """Load wizard state from disk, or return the default initial state."""
+    """Load wizard state from disk, or return the default initial state.
+
+    Releases before 0.5.0 stored the key-encryption password in this file,
+    beside the key it protects. On load, a legacy ``password`` entry is used
+    once to unlock the key in memory and then removed from disk.
+    """
     ensure_dirs()
     if ONBOARDING_STATE_FILE.exists():
         try:
             with open(ONBOARDING_STATE_FILE) as f:
-                return json.load(f)
+                state = json.load(f)
         except (json.JSONDecodeError, OSError):
-            pass
+            return dict(_DEFAULT_STATE)
+        if "password" in state:
+            legacy_password = state.pop("password")
+            _unlock_with_legacy_password(legacy_password)
+            save_onboarding_state(state)
+        return state
     return dict(_DEFAULT_STATE)
+
+
+def _unlock_with_legacy_password(password) -> None:
+    """Warm the in-memory unlock cache from a migrated password, if it works."""
+    if not password:
+        return
+    try:
+        pid_data = load_pid()
+        if pid_data and is_encrypted(pid_data) and not is_unlocked(pid_data):
+            unlock(pid_data, password)
+    except ValueError:
+        pass  # Wrong password on file — the unlock step will ask again
 
 
 def save_onboarding_state(state: dict) -> None:
     """Persist wizard state to ``~/.refinet/onboarding_state.json``."""
     ensure_dirs()
+    state = {k: v for k, v in state.items() if k != "password"}
     with open(ONBOARDING_STATE_FILE, "w") as f:
         json.dump(state, f, indent=2)
 
@@ -209,10 +234,12 @@ def _step_generate_pid_execute(query: str, state: dict,
     password = query.strip() if query.strip() else None
     pid_data = generate_pid(password=password)
     save_pid(pid_data)
+    if password:
+        # Held in memory for the SIWE verify step — never written to disk.
+        unlock(pid_data, password)
 
     state["step"] = "STEP_CONNECT_WALLET"
     state["pid"] = pid_data["pid"]
-    state["password"] = password  # kept in state for SIWE verify step
     save_onboarding_state(state)
 
     logger.info("Onboarding: PID generated — %s", pid_data["pid"][:16])
@@ -284,7 +311,9 @@ def _step_connect_wallet_execute(query: str, state: dict,
 def _step_siwe_challenge(state: dict, hostname: str, port: int) -> str:
     """Generate and display the SIWE challenge."""
     address = state["evm_address"]
-    challenge = create_challenge(address, chain_id=1)
+    # A binding is its own statement (§3.1) — never a sign-in message.
+    challenge = create_challenge(address, chain_id=1, purpose=PURPOSE_BINDING,
+                                 binding_type="deployer")
 
     # Persist the nonce so we can match it on verify
     state["challenge_nonce"] = challenge["nonce"]
@@ -329,12 +358,13 @@ def _step_siwe_verify(query: str, state: dict,
         return _error_menu("pid.json not found — please restart the wizard.",
                            "/onboarding", hostname, port)
 
-    password = state.get("password")
     try:
-        priv_key = get_private_key(pid_data, password=password)
-    except ValueError as exc:
-        return _error_menu(f"Cannot unlock private key: {exc}",
-                           "/onboarding/siwe-challenge", hostname, port)
+        priv_key = get_unlocked_key(pid_data)
+    except ValueError:
+        # Encrypted key and the process restarted since it was generated.
+        state["pending_signature"] = signature
+        save_onboarding_state(state)
+        return _step_unlock_prompt(hostname, port)
 
     siwe_message = state.get("siwe_message", "")
     evm_address = state.get("evm_address", "")
@@ -345,7 +375,6 @@ def _step_siwe_verify(query: str, state: dict,
             evm_address=evm_address,
             siwe_message=siwe_message,
             siwe_signature=signature,
-            chain_id=1,
             private_key=priv_key,
             binding_type="deployer",
         )
@@ -470,6 +499,47 @@ def _step_reset(hostname: str, port: int) -> str:
 
 
 # ------------------------------------------------------------------
+# Unlock (encrypted key, cold process)
+# ------------------------------------------------------------------
+def _step_unlock_prompt(hostname: str, port: int,
+                        error: str | None = None) -> str:
+    """Ask for the key-encryption password (it is never stored on disk)."""
+    lines: list[str] = []
+    _banner(lines)
+    lines.append(info_line("  Unlock Pillar Key"))
+    lines.append(info_line(""))
+    if error:
+        lines.append(info_line(f"  Error: {error}"))
+        lines.append(info_line(""))
+    lines.append(info_line("  Your Pillar key is encrypted. Enter the password"))
+    lines.append(info_line("  you chose when it was generated to continue."))
+    lines.append(info_line(""))
+    lines.append(search_link("Enter encryption password",
+                             "/onboarding/unlock", hostname, port))
+    _footer(lines, hostname, port)
+    return "".join(lines)
+
+
+def _step_unlock_execute(query: str, state: dict,
+                         hostname: str, port: int) -> str:
+    """Unlock the key in memory, then resume a pending signature if any."""
+    pid_data = load_pid()
+    if pid_data is None:
+        return _error_menu("pid.json not found — please restart the wizard.",
+                           "/onboarding", hostname, port)
+    try:
+        unlock(pid_data, query.strip() or None)
+    except ValueError as exc:
+        return _step_unlock_prompt(hostname, port, error=str(exc))
+
+    pending = state.pop("pending_signature", None)
+    save_onboarding_state(state)
+    if pending:
+        return _step_siwe_verify(pending, state, hostname, port)
+    return _step_siwe_challenge(state, hostname, port)
+
+
+# ------------------------------------------------------------------
 # Error helper
 # ------------------------------------------------------------------
 def _error_menu(message: str, retry_selector: str,
@@ -515,6 +585,11 @@ async def handle_wizard_step(selector: str, query: str,
 
     if sel == "/onboarding/complete":
         return _step_complete(hostname, port)
+
+    if sel == "/onboarding/unlock":
+        if query:
+            return _step_unlock_execute(query, state, hostname, port)
+        return _step_unlock_prompt(hostname, port)
 
     # ------ state-driven routing ------
 

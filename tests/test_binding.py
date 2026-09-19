@@ -14,7 +14,7 @@ from crypto.binding import (
     get_all_bindings,
     export_binding_proof,
 )
-from auth.siwe import generate_challenge
+from auth.siwe import generate_binding_challenge
 from db.live_db import init_live_db
 
 
@@ -24,10 +24,21 @@ def _init_db():
     init_live_db()
 
 
-def _make_signed_challenge(pid_data, account, chain_id=1):
-    """Helper: generate a SIWE challenge and sign it with *account*."""
-    message, nonce = generate_challenge(account.address, pid_data["pid"],
-                                        chain_id=chain_id)
+def _make_signed_challenge(pid_data, account, chain_id=1,
+                           binding_type="deployer", register=True):
+    """Helper: generate a §3.1 binding challenge and sign it with *account*.
+
+    A binding is made from its own statement, never from a sign-in message,
+    so the challenge is registered as a "binding" nonce this Pillar issued.
+    """
+    message, nonce = generate_binding_challenge(
+        account.address, pid_data["pid"], chain_id=chain_id,
+        binding_type=binding_type)
+    if register:
+        from db.live_db import record_siwe_nonce
+        from auth.siwe import PURPOSE_BINDING
+        record_siwe_nonce(nonce, PURPOSE_BINDING, pid_data["pid"],
+                          address=account.address, chain_id=chain_id)
     encoded = encode_defunct(text=message)
     signed = account.sign_message(encoded)
     return message, signed.signature.hex()

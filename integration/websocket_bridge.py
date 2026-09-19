@@ -29,6 +29,42 @@ except ImportError:
     _WEBSOCKETS_AVAILABLE = False
 
 
+class BlockedDestination(Exception):
+    """Raised when a destination resolves to an address we refuse to visit."""
+
+
+def address_is_public(ip: str) -> bool:
+    """False for loopback, private, link-local, reserved and multicast."""
+    import ipaddress
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    if getattr(addr, "ipv4_mapped", None) is not None:
+        addr = addr.ipv4_mapped        # [::ffff:127.0.0.1] is 127.0.0.1
+    return not (addr.is_private or addr.is_loopback or addr.is_link_local
+                or addr.is_reserved or addr.is_multicast or addr.is_unspecified)
+
+
+async def resolve_public_address(host: str, port: int) -> str:
+    """Resolve *host* and return an address that is safe to connect to.
+
+    Raises BlockedDestination when the name resolves to a private,
+    loopback, link-local, reserved or multicast address.
+    """
+    import socket
+    loop = asyncio.get_event_loop()
+    infos = await loop.getaddrinfo(host.strip("[]"), port,
+                                   type=socket.SOCK_STREAM)
+    addresses = [info[4][0] for info in infos]
+    if not addresses:
+        raise BlockedDestination(f"{host} did not resolve")
+    for ip in addresses:
+        if not address_is_public(ip):
+            raise BlockedDestination(f"{host} resolves to {ip}")
+    return addresses[0]
+
+
 def _match_origin(origin: str, allowed: list[str]) -> bool:
     """
     Check if an origin matches the allowed list.
@@ -60,13 +96,18 @@ class WebSocketBridge:
     """
 
     def __init__(self, gopher_server, host: str = "127.0.0.1", port: int = 7075,
-                 allowed_origins: list[str] | None = None):
+                 allowed_origins: list[str] | None = None,
+                 extension_ids: list[str] | None = None,
+                 require_origin: bool | None = None):
         """
         Args:
             gopher_server: GopherServer instance for routing
             host: WebSocket bind address
             port: WebSocket port
             allowed_origins: List of allowed origins (prefix or exact match)
+            extension_ids: When non-empty, only these extension ids are
+                admitted (plus loopback origins)
+            require_origin: Refuse connections that send no Origin header
         """
         from core.config import WEBSOCKET_ALLOWED_ORIGINS
         self.gopher_server = gopher_server
@@ -74,6 +115,29 @@ class WebSocketBridge:
         self.port = port
         self.connection_count = 0
         self.allowed_origins = allowed_origins if allowed_origins is not None else WEBSOCKET_ALLOWED_ORIGINS
+
+        config = {}
+        if extension_ids is None or require_origin is None:
+            try:
+                from core.config import load_config
+                config = load_config()
+            except Exception:
+                config = {}
+        self.extension_ids = (extension_ids if extension_ids is not None
+                              else config.get("websocket_extension_ids") or [])
+        self.require_origin = (require_origin if require_origin is not None
+                               else bool(config.get("websocket_require_origin", False)))
+        if self.extension_ids:
+            self.allowed_origins = (
+                [f"chrome-extension://{i}" for i in self.extension_ids]
+                + [f"moz-extension://{i}" for i in self.extension_ids]
+                + [o for o in self.allowed_origins if not o.endswith("://")]
+            )
+        elif not self.require_origin:
+            logger.info(
+                "[WS] Any browser extension may connect. Set "
+                "websocket_extension_ids in config.json to restrict it."
+            )
 
     async def start(self):
         """Start the WebSocket server."""
@@ -93,7 +157,12 @@ class WebSocketBridge:
     async def _check_origin(self, connection, request):
         """Reject connections from disallowed origins."""
         origin = request.headers.get("Origin")
-        if origin and not _match_origin(origin, self.allowed_origins):
+        if not origin:
+            if self.require_origin:
+                logger.warning("[WS] Rejected connection with no Origin header")
+                return connection.respond(403, "Forbidden: Origin required\n")
+            return None  # Historical behaviour: non-browser local clients
+        if not _match_origin(origin, self.allowed_origins):
             logger.warning(f"[WS] Rejected connection from origin: {origin}")
             return connection.respond(403, "Forbidden: origin not allowed\n")
         return None  # Allow the connection
@@ -140,6 +209,8 @@ class WebSocketBridge:
             return await self._handle_onboarding_connect(request)
         elif msg_type == "onboarding_signature":
             return await self._handle_onboarding_signature(request)
+        elif msg_type == "rebind":
+            return await self._handle_rebind(request)
 
         # Existing selector-based routing (requires gopher_server)
         if self.gopher_server is None:
@@ -276,11 +347,20 @@ class WebSocketBridge:
 
         # Ensure PID exists (generate if first-run)
         from crypto.pid import load_pid, generate_pid, save_pid
+        from crypto.unlock import unlock
         pid_data = load_pid()
         if pid_data is None:
             pid_data = generate_pid(password=password)
             save_pid(pid_data)
             logger.info("[WS] Onboarding: generated PID %s", pid_data["pid"][:16])
+        if password:
+            # Unlock in memory for the signature step. The password itself
+            # is never written to onboarding_state.json.
+            try:
+                unlock(pid_data, password)
+            except ValueError as e:
+                return {"status": "error", "type": "onboarding_connect",
+                        "error": f"Cannot unlock private key: {e}"}
 
         # Advance wizard state
         from onboarding.wizard import get_onboarding_state, save_onboarding_state
@@ -288,14 +368,18 @@ class WebSocketBridge:
         state["step"] = "STEP_SIWE_CHALLENGE"
         state["pid"] = pid_data["pid"]
         state["evm_address"] = address
-        if password:
-            state["password"] = password
 
         # Generate SIWE challenge
         try:
             from auth.session import create_challenge
+            from auth.siwe import PURPOSE_BINDING
             chain_id = int(request.get("chain_id", 1))
-            challenge = create_challenge(address, chain_id=chain_id)
+            # Onboarding creates a binding, so it issues a binding challenge
+            # (§3.1) — not the sign-in message it used before 0.5.0.
+            challenge = create_challenge(address, chain_id=chain_id,
+                                         purpose=PURPOSE_BINDING,
+                                         binding_type="deployer",
+                                         company_url=request.get("company_url"))
         except ImportError:
             return {"status": "error", "type": "onboarding_connect",
                     "error": "SIWE requires: pip install eth-account"}
@@ -327,7 +411,8 @@ class WebSocketBridge:
             return {"status": "error", "type": "onboarding_signature",
                     "error": "Missing signature"}
 
-        from crypto.pid import load_pid, get_private_key
+        from crypto.pid import load_pid
+        from crypto.unlock import unlock, get_unlocked_key
         from onboarding.wizard import get_onboarding_state, save_onboarding_state
         from crypto.binding import create_binding
 
@@ -343,12 +428,17 @@ class WebSocketBridge:
             return {"status": "error", "type": "onboarding_signature",
                     "error": "No challenge pending — send onboarding_connect first"}
 
-        password = state.get("password")
         try:
-            priv_key = get_private_key(pid_data, password=password)
+            password = request.get("password")
+            if password:
+                priv_key = unlock(pid_data, password)
+            else:
+                priv_key = get_unlocked_key(pid_data)
         except ValueError as e:
+            # Encrypted key, cold process: resend with "password" to unlock.
             return {"status": "error", "type": "onboarding_signature",
-                    "error": f"Cannot unlock private key: {e}"}
+                    "error": f"Cannot unlock private key: {e}",
+                    "locked": True, "need": "password"}
 
         try:
             binding = create_binding(
@@ -356,9 +446,9 @@ class WebSocketBridge:
                 evm_address=evm_address,
                 siwe_message=siwe_message,
                 siwe_signature=signature,
-                chain_id=1,
+                # chain_id comes from the message the wallet signed
                 private_key=priv_key,
-                binding_type="deployer",
+                binding_type=state.get("binding_type", "deployer"),
             )
         except (ValueError, Exception) as e:
             logger.warning("[WS] Onboarding: binding failed — %s", e)
@@ -380,6 +470,96 @@ class WebSocketBridge:
             "evm_address": binding["evm_address"],
         }
 
+    async def _handle_rebind(self, request: dict) -> dict:
+        """Add a §3.1 binding to a Pillar that is already onboarded.
+
+        Two steps, both ``{"type": "rebind"}``:
+          1. ``{"address": "0x..", "binding_type": "deployer"|"operator",
+                "chain_id": 43113, "company_url": "https://..."}``
+             returns the binding challenge to sign;
+          2. ``{"address": "0x..", "message": "<the challenge>",
+                "signature": "0x.."}`` writes the binding.
+
+        This is how a Pillar whose only binding was made from a sign-in
+        signature (pre-0.5.0) gets a proper one: it needs the wallet, so it
+        can never happen silently. Bindings are append-only — the old row
+        stays, and the new one becomes canonical.
+        """
+        address = request.get("address", "").strip()
+        if not address.startswith("0x") or len(address) != 42:
+            return {"status": "error", "type": "rebind",
+                    "error": "Invalid EVM address. Format: 0x + 40 hex chars"}
+
+        binding_type = request.get("binding_type", "deployer")
+        if binding_type not in ("deployer", "operator"):
+            return {"status": "error", "type": "rebind",
+                    "error": "binding_type must be 'deployer' or 'operator'"}
+
+        from crypto.pid import load_pid
+        pid_data = (self.gopher_server.pid_data
+                    if self.gopher_server is not None else load_pid())
+        if pid_data is None:
+            return {"status": "error", "type": "rebind", "error": "No PID found"}
+
+        signature = request.get("signature", "").strip()
+        message = request.get("message", "")
+
+        # Step 1 — issue the challenge
+        if not signature:
+            try:
+                from auth.session import create_challenge
+                from auth.siwe import PURPOSE_BINDING
+                chain_id = int(request.get("chain_id", 1))
+                challenge = create_challenge(
+                    address, chain_id=chain_id, purpose=PURPOSE_BINDING,
+                    binding_type=binding_type,
+                    company_url=request.get("company_url"))
+            except ImportError:
+                return {"status": "error", "type": "rebind",
+                        "error": "SIWE requires: pip install eth-account"}
+            except Exception as e:
+                return {"status": "error", "type": "rebind",
+                        "error": f"Challenge generation failed: {e}"}
+            return {"status": "ok", "type": "rebind_challenge",
+                    "message": challenge["message"], "pid": pid_data["pid"],
+                    "binding_type": binding_type}
+
+        # Step 2 — write the binding
+        if not message:
+            return {"status": "error", "type": "rebind",
+                    "error": "Missing the signed message"}
+        try:
+            from crypto.unlock import unlock, get_unlocked_key
+            password = request.get("password")
+            priv_key = (unlock(pid_data, password) if password
+                        else get_unlocked_key(pid_data))
+        except ValueError as e:
+            return {"status": "error", "type": "rebind",
+                    "error": f"Cannot unlock private key: {e}",
+                    "locked": True, "need": "password"}
+
+        try:
+            from crypto.binding import create_binding
+            binding = create_binding(
+                pid_data=pid_data,
+                evm_address=address,
+                siwe_message=message,
+                siwe_signature=signature,
+                private_key=priv_key,
+                binding_type=binding_type,
+            )
+        except Exception as e:
+            logger.warning("[WS] Rebind failed — %s", e)
+            return {"status": "error", "type": "rebind", "error": f"Binding failed: {e}"}
+
+        logger.info("[WS] Rebind: %s binding created — %s",
+                    binding_type, binding["binding_id"][:16])
+        return {"status": "ok", "type": "rebind_complete",
+                "binding_id": binding["binding_id"], "pid": binding["pid"],
+                "evm_address": binding["evm_address"],
+                "binding_type": binding["binding_type"],
+                "chain_id": binding["chain_id"]}
+
     async def _handle_browse_remote(self, request: dict) -> dict:
         """Browse a remote Pillar, announcing own PID for peer discovery."""
         host = request.get("host", "").strip()
@@ -395,22 +575,20 @@ class WebSocketBridge:
         except (ValueError, TypeError):
             port = 7070
 
-        # SSRF protection: block private/loopback addresses
-        _blocked_prefixes = (
-            "127.", "0.", "10.", "192.168.", "169.254.",
-            "172.16.", "172.17.", "172.18.", "172.19.",
-            "172.20.", "172.21.", "172.22.", "172.23.",
-            "172.24.", "172.25.", "172.26.", "172.27.",
-            "172.28.", "172.29.", "172.30.", "172.31.",
-            "::1", "fe80:", "fd",
-        )
-        if any(host.startswith(p) for p in _blocked_prefixes) or host == "localhost":
-            return {"status": "error", "error": "Blocked destination: private/loopback address"}
-
         # Port restriction: only Gopher ports
         allowed_ports = {70, 7070, 105}
         if port not in allowed_ports:
             return {"status": "error", "error": f"Port {port} not allowed. Use 70, 7070, or 105"}
+
+        # SSRF protection: resolve the name first, then judge the address.
+        # A string prefix check passes 0x7f000001, 2130706433, 127.1 and
+        # [::ffff:127.0.0.1], and blocks innocent names like fdroid.org.
+        try:
+            resolved = await resolve_public_address(host, port)
+        except BlockedDestination as e:
+            return {"status": "error", "error": f"Blocked destination: {e}"}
+        except OSError as e:
+            return {"status": "error", "error": f"Cannot resolve {host}: {e}"}
 
         # Validate session if provided
         visiting_pid = None
@@ -424,8 +602,10 @@ class WebSocketBridge:
                 pass
 
         try:
+            # Connect to the address that was checked, so a second DNS
+            # answer cannot point somewhere else between check and connect.
             reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(host, port), timeout=15.0
+                asyncio.open_connection(resolved, port), timeout=15.0
             )
             try:
                 # Send selector with optional PID announcement
@@ -447,11 +627,14 @@ class WebSocketBridge:
 
             # Extract remote PID from signature block if present
             remote_pid = None
+            remote_verified = None
             if "---BEGIN REFINET SIGNATURE---" in response_text:
                 for line in response_text.split("\n"):
                     if line.startswith("pid:"):
                         remote_pid = line[4:].strip()
                         break
+                from crypto.signing import verify_response_block
+                remote_verified = verify_response_block(response_text)["valid"]
 
             return {
                 "status": "ok",
@@ -461,6 +644,7 @@ class WebSocketBridge:
                 "selector": selector,
                 "data": response_text,
                 "remote_pid": remote_pid,
+                "remote_verified": remote_verified,
                 "visiting_pid": visiting_pid,
             }
         except asyncio.TimeoutError:
@@ -470,12 +654,21 @@ class WebSocketBridge:
 
     def _sign_response(self, selector: str, response_text: str) -> dict:
         """Build a signed response envelope."""
-        from crypto.signing import hash_content, sign_content
+        import time
+        from crypto.signing import (
+            hash_content, sign_content, response_envelope_signature,
+        )
 
-        content_hash = hash_content(response_text.encode("utf-8"))
-        signature_hex = sign_content(
-            response_text.encode("utf-8"),
-            self.gopher_server.private_key,
+        body = response_text.encode("utf-8")
+        content_hash = hash_content(body)
+        pid = self.gopher_server.pid_data["pid"]
+        # "sig" keeps its original meaning (Ed25519 over the raw data) so
+        # existing extension builds keep verifying. "sig1" is the envelope
+        # signature binding selector and time, same as the Gopher trailer.
+        signature_hex = sign_content(body, self.gopher_server.private_key)
+        now = int(time.time())
+        envelope_sig = response_envelope_signature(
+            self.gopher_server.private_key, pid, selector or "/", now, content_hash,
         )
 
         return {
@@ -483,10 +676,14 @@ class WebSocketBridge:
             "selector": selector,
             "data": response_text,
             "signature": {
-                "pid": self.gopher_server.pid_data["pid"],
+                "pid": pid,
                 "pubkey": self.gopher_server.pid_data["public_key"],
                 "sig": signature_hex,
                 "hash": content_hash,
+                "v": 1,
+                "selector": selector or "/",
+                "time": now,
+                "sig1": envelope_sig,
             },
         }
 

@@ -1,24 +1,31 @@
 """
-REFInet Pillar — Cryptographic Authentication (Schnorr Protocol)
+REFInet Pillar — Key-Possession Proofs
 
-Provides authentication using Schnorr-based proofs:
-  - Prove knowledge of a private key without revealing it
-  - Non-interactive via Fiat-Shamir heuristic (hash-based challenge)
-  - Compatible with Ed25519 keys used throughout REFInet
+Provides challenge-response proofs that the prover holds an Ed25519 key:
+  - A Fiat-Shamir style challenge is derived from a random commitment,
+    the public key and a caller-chosen context
+  - The prover answers by SIGNING the challenge with the private key
+  - The verifier checks that Ed25519 signature
+
+This is a proof of key possession — the same guarantee SIWE gives for an
+EVM key. It is NOT a zero-knowledge proof in the Schnorr sense: no scalar
+arithmetic happens, and the response is an ordinary signature. Earlier
+releases called it "SchnorrZKP"; that name remains as an alias so existing
+callers keep working, and the wire ``type`` stays ``schnorr-zkp-v1``.
 
 Two proof types:
-  1. SchnorrZKP — Prove you own a specific PID (zero-knowledge: key not revealed)
-  2. MembershipAttestation — Prove your PID is a member of a set
+  1. KeyPossessionProof — prove you hold the key for a specific PID
+  2. MembershipAttestation — prove your PID is a member of a set
      NOTE: This is NOT anonymous. The verifier learns which member proved
      membership. For anonymous membership proofs, a ring signature scheme
      (e.g., LSAG) would be required.
 
 Usage:
     # Prover generates proof
-    proof = SchnorrZKP.prove(private_key, context="auth-session-123")
+    proof = KeyPossessionProof.prove(private_key, context="auth-session-123")
 
     # Verifier checks proof
-    valid = SchnorrZKP.verify(proof, public_key_hex, context="auth-session-123")
+    valid = KeyPossessionProof.verify(proof, public_key_hex, context="auth-session-123")
 """
 
 from __future__ import annotations
@@ -34,21 +41,18 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
 from cryptography.hazmat.primitives import serialization
 
 
-class SchnorrZKP:
+class KeyPossessionProof:
     """
-    Non-interactive Schnorr zero-knowledge proof over Ed25519.
+    Non-interactive proof of Ed25519 key possession.
 
-    The prover demonstrates knowledge of a private key corresponding
-    to a public key without revealing the private key itself.
+    Protocol:
+        1. Prover picks a random nonce and commits: C = SHA-256(nonce || public_key)
+        2. Challenge c = SHA-256(C || public_key || context)
+        3. Response = Ed25519 signature over (c || C)
+        4. Verifier recomputes c and checks the signature
 
-    Protocol (Fiat-Shamir):
-        1. Prover generates random nonce k, computes commitment R = k*G
-        2. Challenge c = SHA-256(R || public_key || context)
-        3. Response s = k + c * private_key (mod order)
-        4. Verifier checks: s*G == R + c*public_key
-
-    Since Ed25519 doesn't expose scalar arithmetic directly, we use
-    the Ed25519 sign/verify as a building block for the ZKP.
+    The private key is never revealed, but this is a signature-based
+    challenge-response, not a zero-knowledge proof.
     """
 
     @staticmethod
@@ -178,7 +182,7 @@ class MembershipAttestation:
             raise ValueError("Our public key is not in the member set")
 
         # Generate individual proof for our key
-        our_proof = SchnorrZKP.prove(private_key, context=context)
+        our_proof = KeyPossessionProof.prove(private_key, context=context)
 
         # Create blinded commitments for other members
         ring_commitments = []
@@ -244,7 +248,7 @@ class MembershipAttestation:
                 return False
 
             # Verify the Schnorr proof itself
-            if not SchnorrZKP.verify(inner_proof, prover_pubkey, context=context):
+            if not KeyPossessionProof.verify(inner_proof, prover_pubkey, context=context):
                 return False
 
             # Verify ring challenge consistency
@@ -260,3 +264,6 @@ class MembershipAttestation:
 
 # Backwards-compatible alias (deprecated — use MembershipAttestation)
 MembershipProof = MembershipAttestation
+
+# Backwards-compatible name (pre-0.5.0). Prefer KeyPossessionProof.
+SchnorrZKP = KeyPossessionProof

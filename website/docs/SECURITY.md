@@ -30,14 +30,14 @@ Report privately via:
 | Argon2id | Key derivation for encrypted key storage |
 | X25519 | Key exchange for encrypted channels |
 | Shamir SSS (GF256/0x11D) | Key recovery (k-of-n threshold shares) |
-| Schnorr ZKP (Fiat-Shamir) | Zero-knowledge proof of key ownership |
+| Key-possession proof (Ed25519 challenge-response) | Proves the holder has the PID's private key (a signature, not a zero-knowledge proof) |
 | SIWE (EIP-4361) | Wallet-based authentication |
 
 ## Security Architecture
 
 - Private keys never leave the local machine
 - WebSocket CORS restricted to configured origin allowlist
-- SSRF protection on proxy (RFC 1918 + loopback blocked)
+- SSRF protection on proxy (RFC 1918 + loopback blocked); the browser bridge resolves names first and judges the resolved address
 - Rate limiting: 100 requests / 60 seconds per IP
 - Path traversal protection on all file-serving routes
 - Content signing with Ed25519 on every served response

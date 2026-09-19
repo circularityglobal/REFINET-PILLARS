@@ -15,7 +15,6 @@ Think of it like Lightning Network channel discovery, but for Gopher.
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import re
 import socket
@@ -30,6 +29,9 @@ from core.config import (
     DISCOVERY_INTERVAL_SEC,
     PROTOCOL_VERSION,
 )
+from crypto.signing import (
+    DOMAIN_ANNOUNCE, pid_matches_key, sign_domain, verify_domain,
+)
 from db.live_db import upsert_peer, update_peer_onion
 
 logger = logging.getLogger("refinet.discovery")
@@ -41,15 +43,30 @@ def verify_peer_identity(pid: str, public_key_hex: str) -> bool:
     PID = SHA-256(public_key_bytes). If the key doesn't hash to the
     claimed PID, the announcement is forged.
     """
-    try:
-        return hashlib.sha256(bytes.fromhex(public_key_hex)).hexdigest() == pid
-    except (ValueError, TypeError):
-        return False
+    return pid_matches_key(pid, public_key_hex)
+
+
+ANNOUNCE_MAX_SKEW_SECONDS = 60
+
+
+def announce_preimage_fields(msg: dict) -> tuple:
+    """The fields an announcement signature covers."""
+    return (msg["pid"], msg["hostname"], msg["port"], msg["timestamp"])
 
 
 def build_announce_message(pid_data: dict, hostname: str, port: int,
-                           pillar_name: str, onion_address: str = None) -> bytes:
-    """Build a JSON announcement message for multicast."""
+                           pillar_name: str, onion_address: str = None,
+                           private_key=None, timestamp: int = None) -> bytes:
+    """Build a JSON announcement message for multicast.
+
+    The announcement is signed over (pid, hostname, port, timestamp) under
+    the REFINET-ANNOUNCE-v1 domain. Without a signature anyone on the
+    segment could re-announce a real Pillar's PID with their own address
+    and receive its traffic, because pid and public_key are public.
+
+    No wallet information is announced: a peer that wants a Pillar's wallet
+    fetches /identity.json and verifies the binding itself.
+    """
     msg = {
         "type": "pillar_announce",
         "protocol": "REFInet",
@@ -59,23 +76,43 @@ def build_announce_message(pid_data: dict, hostname: str, port: int,
         "hostname": hostname,
         "port": port,
         "pillar_name": pillar_name,
-        "timestamp": int(time.time()),
+        "timestamp": int(time.time()) if timestamp is None else int(timestamp),
     }
     if onion_address:
         msg["onion_address"] = onion_address
 
-    # Include deployer binding summary (lightweight — no signatures)
-    # Peers fetch the full proof via /identity.json if they need to verify.
-    try:
-        from crypto.binding import get_deployer_binding
-        binding = get_deployer_binding(pid_data["pid"])
-        if binding:
-            msg["evm_address"] = binding["evm_address"]
-            msg["binding_id"] = binding["binding_id"]
-    except Exception:
-        pass  # DB not yet initialised or table missing — skip binding info
+    if private_key is None:
+        try:
+            from crypto.unlock import get_unlocked_key
+            private_key = get_unlocked_key(pid_data)
+        except (ValueError, KeyError, ImportError):
+            private_key = None  # Locked key: announce unsigned, as before
+    if private_key is not None:
+        msg["sig"] = sign_domain(DOMAIN_ANNOUNCE, private_key,
+                                 *announce_preimage_fields(msg))
 
     return json.dumps(msg).encode("utf-8")
+
+
+def verify_announce_signature(msg: dict, now: int = None) -> tuple[bool, str]:
+    """Verify an announcement's signature and freshness.
+
+    Returns (ok, reason). ``(False, "unsigned")`` means the announcement
+    carries no signature at all — an older Pillar.
+    """
+    if "sig" not in msg:
+        return (False, "unsigned")
+    try:
+        timestamp = int(msg["timestamp"])
+    except (KeyError, TypeError, ValueError):
+        return (False, "no timestamp")
+    now = int(time.time()) if now is None else now
+    if abs(now - timestamp) > ANNOUNCE_MAX_SKEW_SECONDS:
+        return (False, "stale or future-dated announcement")
+    if not verify_domain(DOMAIN_ANNOUNCE, msg["sig"], msg.get("public_key", ""),
+                         *announce_preimage_fields(msg)):
+        return (False, "signature does not verify")
+    return (True, "ok")
 
 
 def parse_announce_message(data: bytes) -> dict | None:
@@ -105,16 +142,17 @@ class PeerAnnouncer:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
 
-        msg = build_announce_message(
-            self.pid_data, self.hostname, self.port, self.pillar_name,
-            onion_address=self.onion_address,
-        )
-
         logger.info(f"Announcer started (multicast {MULTICAST_GROUP}:{MULTICAST_PORT})")
 
         try:
             while True:
                 try:
+                    # Rebuilt every round: the signature covers the timestamp,
+                    # so one message cannot be reused (or replayed) for long.
+                    msg = build_announce_message(
+                        self.pid_data, self.hostname, self.port, self.pillar_name,
+                        onion_address=self.onion_address,
+                    )
                     sock.sendto(msg, (MULTICAST_GROUP, MULTICAST_PORT))
                     logger.debug("Sent announce")
                 except Exception as e:
@@ -125,10 +163,53 @@ class PeerAnnouncer:
 
 
 class PeerListener:
-    """Listens for announcements from other Pillars on the local network."""
+    """Listens for announcements from other Pillars on the local network.
 
-    def __init__(self, own_pid: str):
+    Policy:
+      * a signed announcement must verify and be fresh, and its timestamp
+        must be newer than the last one accepted for that PID;
+      * an unsigned announcement (an older Pillar) may introduce a peer we
+        have never seen, but may never move a known peer's address;
+      * ``discovery_require_signed`` in config.json drops unsigned ones.
+    """
+
+    def __init__(self, own_pid: str, require_signed: bool = None):
         self.own_pid = own_pid
+        if require_signed is None:
+            try:
+                from core.config import load_config
+                require_signed = bool(load_config().get("discovery_require_signed", False))
+            except Exception:
+                require_signed = False
+        self.require_signed = require_signed
+        # Bounded: a stranger can mint keypairs, so this must not grow forever.
+        self._last_announce_ts: dict[str, int] = {}
+        self.max_tracked_pids = 10000
+
+    def accept_announcement(self, msg: dict, known_pids: set) -> tuple[bool, bool, str]:
+        """Decide what to do with an announcement.
+
+        Returns (accept, may_move_address, reason).
+        """
+        pid = msg.get("pid", "")
+        signed_ok, reason = verify_announce_signature(msg)
+        if signed_ok:
+            last = self._last_announce_ts.get(pid)
+            ts = int(msg["timestamp"])
+            if last is not None and ts <= last:
+                return (False, False, "replayed announcement")
+            if (pid not in self._last_announce_ts
+                    and len(self._last_announce_ts) >= self.max_tracked_pids):
+                # Drop the oldest entry (insertion-ordered dict)
+                self._last_announce_ts.pop(next(iter(self._last_announce_ts)))
+            self._last_announce_ts[pid] = ts
+            return (True, True, "signed")
+        if self.require_signed:
+            return (False, False, f"unsigned announcement refused ({reason})")
+        if pid in known_pids:
+            # Known peer, unsigned word: keep serving it at the address we know.
+            return (True, False, f"unsigned ({reason}) — address not updated")
+        return (True, False, f"unsigned ({reason}) — new peer")
 
     async def run(self):
         """Listen for multicast announcements and register new peers."""
@@ -170,16 +251,38 @@ class PeerListener:
                         )
                         continue
 
+                    # Check if this is a genuinely new peer
+                    from db.live_db import get_peers as _get_all_peers
+                    peers_now = {p["pid"]: p for p in _get_all_peers()}
+                    is_new = peer_pid not in peers_now
+
+                    accept, may_move, why = self.accept_announcement(
+                        msg, set(peers_now))
+                    if not accept:
+                        logger.warning(
+                            f"Rejected announcement from {peer_pid[:16]}...: {why}")
+                        continue
+                    if not is_new and not may_move:
+                        # Refresh last_seen only; never relocate a known peer
+                        # on an unsigned announcement.
+                        known = peers_now[peer_pid]
+                        upsert_peer(
+                            pid=peer_pid,
+                            public_key=peer_key,
+                            hostname=known.get("hostname"),
+                            port=known.get("port", 7070),
+                            pillar_name=msg.get("pillar_name"),
+                            protocol_version=msg.get("version"),
+                        )
+                        continue
+
                     # Use the actual sender IP if hostname is "localhost"
                     hostname = msg.get("hostname", addr[0])
                     if hostname in ("localhost", "0.0.0.0", "127.0.0.1"):
                         hostname = addr[0]
 
-                    # Check if this is a genuinely new peer
-                    from db.live_db import get_peers as _get_all_peers
-                    known_pids = {p["pid"] for p in _get_all_peers()}
-                    is_new = peer_pid not in known_pids
-
+                    # evm_address is never taken from an announcement: peers
+                    # fetch /identity.json and verify the binding themselves.
                     upsert_peer(
                         pid=peer_pid,
                         public_key=peer_key,
@@ -187,7 +290,6 @@ class PeerListener:
                         port=msg.get("port", 7070),
                         pillar_name=msg.get("pillar_name"),
                         protocol_version=msg.get("version"),
-                        evm_address=msg.get("evm_address"),
                     )
 
                     # Store .onion address if announced
