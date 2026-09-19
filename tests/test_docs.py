@@ -87,3 +87,28 @@ def test_documented_test_counts_are_not_overstated():
         for claimed in re.findall(r"across \*{0,2}(\d+) modules", text):
             assert int(claimed) <= actual_modules, (
                 f"{name} claims {claimed} test modules; {actual_modules} exist")
+
+
+# ---------------------------------------------------------------------------
+# The README's CI/CD section makes claims about the repository's own hygiene.
+# One of them was false: .gitignore had been pasted from a chat window, fence
+# and all, and never covered the build artifacts the README said it did.
+# ---------------------------------------------------------------------------
+
+def test_gitignore_is_not_a_pasted_code_block():
+    lines = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+    fences = [n for n, line in enumerate(lines, 1) if line.startswith("```")]
+    assert fences == [], f".gitignore has markdown fences on line(s) {fences}"
+
+
+def test_gitignore_covers_what_the_readme_says_it_covers():
+    patterns = {
+        line.strip()
+        for line in (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.startswith("#")
+    }
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    if "build artifacts" in readme:
+        for required in ("build/", "dist/", "*.egg-info/"):
+            assert required in patterns, f".gitignore is missing {required}"
+    assert "__pycache__/" in patterns

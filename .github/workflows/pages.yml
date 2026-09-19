@@ -1,23 +1,53 @@
 name: Deploy Website
 
+# Publishes website/ to GitHub Pages. netlify.toml in the repository root
+# suggests Netlify is the live host, in which case Pages is never enabled and
+# this workflow has nothing to do — so it checks first and says so, instead
+# of failing with "Get Pages site failed".
+
 on:
   push:
     branches: [main]
     paths: ["website/**"]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  preflight:
+    name: Is GitHub Pages enabled?
     runs-on: ubuntu-latest
+    permissions:
+      pages: read
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - name: Query the Pages API
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${{ github.repository }}/pages" --silent 2>/dev/null; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "GitHub Pages is enabled; publishing website/."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Website deploy skipped::GitHub Pages is not enabled for this repository. Turn it on under Settings → Pages (source: GitHub Actions) to publish website/ here, or delete .github/workflows/pages.yml if Netlify serves the site — netlify.toml already publishes the same directory."
+          fi
+
+  deploy:
+    needs: preflight
+    if: needs.preflight.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v4

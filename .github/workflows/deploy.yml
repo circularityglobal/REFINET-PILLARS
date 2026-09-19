@@ -1,12 +1,46 @@
 name: Deploy Bootstrap Pillar
 
+# Deploys the bootstrap Pillar to Fly.io. A fork, or a repository that does
+# not run a bootstrap node, has no FLY_API_TOKEN — that is a configuration,
+# not a fault, so the workflow reports it and stops rather than failing.
+
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
+env:
+  FLY_APP: ${{ vars.FLY_APP || 'refinet-pillar' }}
+  PILLAR_HOST: ${{ vars.PILLAR_HOST || 'gopher.refinet.io' }}
+  PILLAR_PORT: ${{ vars.PILLAR_PORT || '7070' }}
+
 jobs:
+  preflight:
+    name: Is a deploy target configured?
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.check.outputs.deploy }}
+    steps:
+      # The `secrets` context cannot be read from a job-level `if:`, so
+      # whether to deploy has to be decided in a step and handed on as an
+      # output. The token's value is never printed — only whether it is set.
+      - name: Check for FLY_API_TOKEN
+        id: check
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ -n "$FLY_API_TOKEN" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            echo "FLY_API_TOKEN is set; deploying ${FLY_APP}."
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Deploy skipped::FLY_API_TOKEN is not set, so there is no Fly.io account to deploy to. Add the secret under Settings → Secrets and variables → Actions to enable this workflow, or delete .github/workflows/deploy.yml if this repository does not run the bootstrap Pillar."
+          fi
+
   test:
+    name: Test before deploying
+    needs: preflight
+    if: needs.preflight.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,12 +50,13 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install pytest-timeout
+          pip install -e '.[test]'
       - name: Run test suite
         run: python -m pytest tests/ -q --timeout=60
 
   deploy:
-    needs: test
+    needs: [preflight, test]
+    if: needs.preflight.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -31,32 +66,23 @@ jobs:
         uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy to Fly.io
-        run: flyctl deploy --remote-only --app refinet-pillar
+        run: flyctl deploy --remote-only --app "$FLY_APP"
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
       - name: Wait for deployment health check
         run: |
-          echo "Waiting for deployment to be healthy..."
+          echo "Waiting for ${PILLAR_HOST}:${PILLAR_PORT} to answer..."
           sleep 30
-          for i in {1..10}; do
-            if printf "\r\n" | nc -q2 -w5 gopher.refinet.io 7070 | grep -qi "refinet"; then
-              echo "Deployment successful - service is responding"
-              exit 0
-            fi
-            echo "Attempt $i: Service not ready yet, waiting..."
-            sleep 10
-          done
-          echo "Deployment health check failed"
-          exit 1
+          python3 .github/scripts/pillar_probe.py online \
+            "$PILLAR_HOST" "$PILLAR_PORT" --retries 10 --delay 10
 
       - name: Set PID secret on Fly (only if changed)
-        run: |
-          if [ -n "${{ secrets.REFINET_PID_JSON }}" ]; then
-            flyctl secrets set \
-              REFINET_PID_JSON='${{ secrets.REFINET_PID_JSON }}' \
-              --app refinet-pillar
-          fi
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          REFINET_PID_JSON: ${{ secrets.REFINET_PID_JSON }}
+        run: |
+          if [ -n "$REFINET_PID_JSON" ]; then
+            flyctl secrets set REFINET_PID_JSON="$REFINET_PID_JSON" --app "$FLY_APP"
+          fi
         continue-on-error: true

@@ -178,9 +178,17 @@ flyctl deploy --app refinet-pillar
 ### Option B: Deploy via GitHub Actions (Automated)
 
 Push to `main` triggers `.github/workflows/deploy.yml` which:
-1. Runs the full test suite
-2. Deploys to Fly.io using `FLY_API_TOKEN`
-3. Sets the `REFINET_PID_JSON` secret on the Fly app
+1. Checks that `FLY_API_TOKEN` is set — **if it is not, the run stops here
+   with a notice and succeeds.** A repository that does not operate a
+   bootstrap Pillar has nothing to deploy, and should not show a red badge
+   for it. Steps 2–4 need the secret from Step 2b.
+2. Runs the full test suite
+3. Deploys to Fly.io using `FLY_API_TOKEN`
+4. Sets the `REFINET_PID_JSON` secret on the Fly app
+
+The app name and probed host default to `refinet-pillar` and
+`gopher.refinet.io:7070`, and can be overridden with the repository
+variables `FLY_APP`, `PILLAR_HOST` and `PILLAR_PORT` (`gh variable set`).
 
 ```bash
 git push origin main
@@ -408,7 +416,15 @@ flyctl secrets set REFINET_PID_JSON="$(cat /tmp/bootstrap_pid.json)" --app refin
 
 1. Run the workflow manually: `gh workflow run health.yml`
 2. Check workflow logs: https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/health.yml
-3. The workflow uses `nc` to probe `gopher.refinet.io:7070` — if DNS or the node is down, it reports offline
+3. The workflow probes `gopher.refinet.io:7070` with
+   `.github/scripts/pillar_probe.py` — if DNS or the node is down, it records
+   **offline** in the badge and the run still succeeds. An offline node is
+   the result this monitor exists to report, not a failure of the monitor.
+   A red *run* therefore means the workflow itself broke; a red *badge* means
+   the Pillar is down.
+4. GitHub disables a scheduled workflow after 60 days without repository
+   activity. If the badge has simply stopped updating, check whether the
+   schedule was suspended, and re-enable it from the Actions tab.
 
 ### Bootstrap peer rejected by other Pillars
 

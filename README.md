@@ -179,10 +179,10 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting and [CODE_OF_CONDUCT.
 | Workflow | Status | Description |
 |----------|--------|-------------|
 | **Test Suite** | [![Tests](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/test.yml/badge.svg)](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/test.yml) | Multi-Python testing (3.9, 3.11, 3.12) with 60s timeout |
-| **Deploy Bootstrap** | [![Deploy](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/deploy.yml/badge.svg)](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/deploy.yml) | Automated Fly.io deployment with health checks |
+| **Deploy Bootstrap** | [![Deploy](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/deploy.yml/badge.svg)](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/deploy.yml) | Automated Fly.io deployment with health checks; skips with a notice when `FLY_API_TOKEN` is unset |
 | **Release** | [![Release](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/release.yml/badge.svg)](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/release.yml) | Multi-platform builds (Windows, macOS, Linux, Android, PyPI, Docker) |
-| **Pillar Health** | [![Health](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/health.yml/badge.svg)](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/health.yml) | 15-minute uptime monitoring of bootstrap node |
-| **Website** | [![Website](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/pages.yml/badge.svg)](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/pages.yml) | GitHub Pages deployment |
+| **Pillar Health** | [![Health](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/health.yml/badge.svg)](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/health.yml) | 15-minute uptime monitoring of the bootstrap node; a node that is down is recorded in the badge, not raised as a failure |
+| **Website** | [![Website](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/pages.yml/badge.svg)](https://github.com/circularityglobal/REFINET-PILLARS/actions/workflows/pages.yml) | GitHub Pages deployment; skips with a notice when Pages is not enabled (`netlify.toml` publishes the same directory) |
 
 ### Production Pipeline Quality Improvements
 

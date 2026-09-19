@@ -1,56 +1,64 @@
 name: Pillar Health
 
+# Reports whether the bootstrap Pillar is answering, and keeps the README
+# badge honest. A Pillar that is down is the result this monitor exists to
+# report, so it is recorded in the badge — not raised as a workflow failure.
+#
+# GitHub disables a scheduled workflow after 60 days without repository
+# activity; it resumes on the next push.
+
 on:
   schedule:
     - cron: "*/15 * * * *"   # every 15 minutes
   workflow_dispatch:
+
+permissions:
+  contents: write   # the badge is committed back to the branch
+
+env:
+  PILLAR_HOST: ${{ vars.PILLAR_HOST || 'gopher.refinet.io' }}
+  PILLAR_PORT: ${{ vars.PILLAR_PORT || '7070' }}
 
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install netcat
-        run: sudo apt-get install -y netcat-openbsd
-
-      - name: Probe port 7070
+      - name: Probe the Pillar
         id: probe
         run: |
-          if printf "\r\n" | nc -q2 -w5 gopher.refinet.io 7070 | grep -qi "refinet"; then
-            echo "status=online"  >> $GITHUB_OUTPUT
-            echo "color=brightgreen" >> $GITHUB_OUTPUT
-            echo "label=gopher%3A%2F%2Fgopher.refinet.io%3A7070" >> $GITHUB_OUTPUT
+          if python3 .github/scripts/pillar_probe.py online "$PILLAR_HOST" "$PILLAR_PORT"; then
+            echo "status=online"     >> "$GITHUB_OUTPUT"
+            echo "color=brightgreen" >> "$GITHUB_OUTPUT"
+            label="gopher://${PILLAR_HOST}:${PILLAR_PORT}"
           else
-            echo "status=offline" >> $GITHUB_OUTPUT
-            echo "color=red"      >> $GITHUB_OUTPUT
-            echo "label=gopher.refinet.io" >> $GITHUB_OUTPUT
+            echo "status=offline" >> "$GITHUB_OUTPUT"
+            echo "color=red"      >> "$GITHUB_OUTPUT"
+            label="${PILLAR_HOST}"
+            echo "::notice title=Pillar offline::${PILLAR_HOST}:${PILLAR_PORT} did not answer. The badge now says offline. If no bootstrap Pillar is deployed yet, that is expected — see the Deploy Bootstrap Pillar workflow."
           fi
+          # shields.io reads "-" as its field separator and "_" as a space,
+          # so both have to be doubled before the label is URL-encoded.
+          encoded=$(LABEL="$label" python3 -c "
+          import os, urllib.parse
+          label = os.environ['LABEL'].replace('-', '--').replace('_', '__')
+          print(urllib.parse.quote(label, safe=''))
+          ")
+          echo "label=$encoded" >> "$GITHUB_OUTPUT"
 
       - name: Fetch root menu
-        run: |
-          printf "\r\n" | nc -q2 -w5 gopher.refinet.io 7070 | head -20
+        if: steps.probe.outputs.status == 'online'
+        run: python3 .github/scripts/pillar_probe.py menu "$PILLAR_HOST" "$PILLAR_PORT"
 
       - name: Fetch /health/services JSON
-        run: |
-          printf "/health/services\r\n" | nc -q2 -w5 gopher.refinet.io 7070 \
-            | python3 -c "
-          import sys, json
-          raw = sys.stdin.read().rstrip('.\r\n')
-          data = json.loads(raw)
-          ok = sum(1 for s in data if s['available'])
-          print(f'Services: {ok}/{len(data)} available')
-          for s in data:
-              icon = '✓' if s['available'] else '○'
-              print(f'  {icon} {s[\"name\"]}')
-          "
+        if: steps.probe.outputs.status == 'online'
+        run: python3 .github/scripts/pillar_probe.py services "$PILLAR_HOST" "$PILLAR_PORT"
 
       - name: Write status badge
         run: |
           mkdir -p .github/badges
-          curl -sL \
+          curl -sSL --fail \
             "https://img.shields.io/badge/${{ steps.probe.outputs.label }}-${{ steps.probe.outputs.status }}-${{ steps.probe.outputs.color }}.svg" \
             -o .github/badges/pillar-status.svg
 
@@ -59,7 +67,11 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .github/badges/pillar-status.svg
-          git diff --staged --quiet || {
+          if git diff --staged --quiet; then
+            echo "Badge unchanged; nothing to commit."
+          else
             git commit -m "chore: pillar status [skip ci]"
-            git push
-          }
+            # Another run on a 15-minute schedule may have pushed in between.
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
