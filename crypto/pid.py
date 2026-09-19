@@ -24,7 +24,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from core.config import PID_FILE, ensure_dirs
+from core.config import PID_FILE, PROTOCOL_VERSION, ensure_dirs
 
 # ---------------------------------------------------------------------------
 # Try importing argon2; fall back gracefully so tests/scripts that don't
@@ -155,7 +155,7 @@ def generate_pid(password: str = None) -> dict:
         "public_key": pub_bytes.hex(),
         "private_key": priv_field,
         "created_at": int(time.time()),
-        "protocol": "REFInet-v0.2",
+        "protocol": PROTOCOL_VERSION,
         "key_store": "software",
     }
 
@@ -164,12 +164,19 @@ def generate_pid(password: str = None) -> dict:
 # PID Persistence
 # ---------------------------------------------------------------------------
 def save_pid(pid_data: dict, path: Path = None):
-    """Persist PID to disk."""
+    """Persist PID to disk, readable by the owner only (0600).
+
+    The file holds the private key (plaintext or encrypted), so it gets the
+    same mode as the Tor and TLS keys. The explicit chmod also tightens a
+    file that an older release wrote with the process umask.
+    """
     if path is None:
         path = PID_FILE
     ensure_dirs()
-    with open(path, "w") as f:
+    fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
         json.dump(pid_data, f, indent=2)
+    os.chmod(path, 0o600)
 
 
 def load_pid(path: Path = None) -> dict | None:

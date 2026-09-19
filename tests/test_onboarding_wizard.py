@@ -56,7 +56,7 @@ class TestIsOnboardingCompleteTrue:
         """pid.json exists and binding exists → returns True."""
         from eth_account import Account
         from eth_account.messages import encode_defunct
-        from auth.siwe import generate_challenge
+        from auth.siwe import generate_binding_challenge
         from crypto.pid import get_private_key
         from crypto.binding import create_binding
 
@@ -72,7 +72,12 @@ class TestIsOnboardingCompleteTrue:
         )
 
         account = Account.create()
-        message, nonce = generate_challenge(account.address, pid_data["pid"])
+        message, nonce = generate_binding_challenge(
+            account.address, pid_data["pid"], chain_id=1)
+        from db.live_db import record_siwe_nonce
+        from auth.siwe import PURPOSE_BINDING
+        record_siwe_nonce(nonce, PURPOSE_BINDING, pid_data["pid"],
+                          address=account.address, chain_id=1)
         encoded = encode_defunct(text=message)
         signed = account.sign_message(encoded)
         priv_key = get_private_key(pid_data)
@@ -147,7 +152,7 @@ class TestWizardSiweVerifyCreatesBinding:
         """Simulate full flow with mocked SIWE signature, confirm binding row exists."""
         from eth_account import Account
         from eth_account.messages import encode_defunct
-        from auth.siwe import generate_challenge
+        from auth.siwe import generate_binding_challenge
         from crypto.pid import get_private_key
 
         # Set up isolated paths
@@ -170,7 +175,12 @@ class TestWizardSiweVerifyCreatesBinding:
 
         # Step 2: Generate SIWE challenge
         account = Account.create()
-        message, nonce = generate_challenge(account.address, pid_data["pid"])
+        message, nonce = generate_binding_challenge(
+            account.address, pid_data["pid"], chain_id=1)
+        from db.live_db import record_siwe_nonce
+        from auth.siwe import PURPOSE_BINDING
+        record_siwe_nonce(nonce, PURPOSE_BINDING, pid_data["pid"],
+                          address=account.address, chain_id=1)
         encoded = encode_defunct(text=message)
         signed = account.sign_message(encoded)
 

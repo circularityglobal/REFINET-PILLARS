@@ -8,9 +8,43 @@ Stored in ~/.refinet/rpc_config.json.
 import json
 from pathlib import Path
 from core.config import HOME_DIR, ensure_dirs
-from rpc.chains import DEFAULT_CHAINS
+from rpc.chains import DEFAULT_CHAINS, register_chain
 
 RPC_CONFIG_PATH = HOME_DIR / "rpc_config.json"
+CHAINS_CONFIG_PATH = HOME_DIR / "chains.json"
+
+
+def load_custom_chains() -> dict:
+    """Merge operator-defined chains from ~/.refinet/chains.json.
+
+    Lets an operator add a network without waiting for a release. Returns
+    the chains that were registered.
+    """
+    ensure_dirs()
+    if not CHAINS_CONFIG_PATH.exists():
+        return {}
+    try:
+        with open(CHAINS_CONFIG_PATH) as f:
+            raw = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return {}
+    added = {}
+    for chain_id_str, chain in (raw or {}).items():
+        try:
+            chain_id = int(chain_id_str)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(chain, dict) or not chain.get("rpc"):
+            continue
+        entry = {
+            "name": chain.get("name", f"Chain {chain_id}"),
+            "rpc": chain["rpc"],
+            "symbol": chain.get("symbol", ""),
+            "explorer": chain.get("explorer", ""),
+        }
+        register_chain(chain_id, entry, aliases=chain.get("aliases"))
+        added[chain_id] = entry
+    return added
 
 
 def load_rpc_config() -> dict:
@@ -21,6 +55,9 @@ def load_rpc_config() -> dict:
     """
     ensure_dirs()
     config = {}
+
+    # Operator-defined chains first, so their endpoints are in the table
+    load_custom_chains()
 
     # Start with defaults
     for chain_id, chain in DEFAULT_CHAINS.items():

@@ -24,7 +24,6 @@ import base64
 import collections
 import logging
 import time
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -56,11 +55,13 @@ from core.menu_builder import (
     search_link,
     separator,
 )
-from crypto.pid import get_or_create_pid, get_private_key, get_short_pid
-from crypto.signing import hash_content, sign_content
+from crypto.pid import get_or_create_pid, get_short_pid
+from crypto.unlock import get_unlocked_key
+from crypto.signing import hash_content, sign_content, build_signature_trailer
 from db.live_db import (
     init_live_db,
-    record_transaction,
+    count_service_proofs_today,
+    increment_requests_served,
     update_daily_metrics,
     get_tx_count_today,
     get_recent_transactions,
@@ -94,17 +95,41 @@ def render_gophermap(content: str, hostname: str, port: int) -> str:
 class RateLimiter:
     """Simple in-memory per-IP sliding window rate limiter."""
 
-    def __init__(self, max_requests: int = 100, window_seconds: int = 60):
+    def __init__(self, max_requests: int = 100, window_seconds: int = 60,
+                 max_tracked_ips: int = 10000, sweep_every: int = 1000):
         self.max_requests = max_requests
         self.window_seconds = window_seconds
+        # Insertion-ordered, so the oldest tracked address is the first key.
         self._requests: dict[str, collections.deque] = {}
         self.blocked_count = 0
+        self.max_tracked_ips = max_tracked_ips
+        self.sweep_every = sweep_every
+        self._calls_since_sweep = 0
+
+    def _sweep(self, cutoff: float) -> None:
+        """Forget addresses with nothing left in the window.
+
+        Without this the table grows for every address ever seen, which is
+        a slow memory leak an attacker can drive: IPs are free.
+        """
+        stale = [ip for ip, q in self._requests.items() if not q or q[-1] < cutoff]
+        for ip in stale:
+            del self._requests[ip]
 
     def is_allowed(self, ip: str) -> bool:
         now = time.time()
         cutoff = now - self.window_seconds
 
+        self._calls_since_sweep += 1
+        if self._calls_since_sweep >= self.sweep_every:
+            self._calls_since_sweep = 0
+            self._sweep(cutoff)
+
         if ip not in self._requests:
+            if len(self._requests) >= self.max_tracked_ips:
+                self._sweep(cutoff)
+                while len(self._requests) >= self.max_tracked_ips:
+                    self._requests.pop(next(iter(self._requests)))
             self._requests[ip] = collections.deque()
 
         q = self._requests[ip]
@@ -152,12 +177,19 @@ def _accounting_date_dict() -> dict:
 
 
 # REFInet-exclusive routes — blocked on standard Gopher port
+# service_proofs is append-only and undeletable, so receipt intake is
+# bounded: a signature costs a stranger nothing, and identities are free.
+MAX_RECEIPTS_PER_REQUESTER_PER_DAY = 500
+MAX_RECEIPTS_PER_DAY = 5000
+MAX_RECEIPT_RESOURCE_CHARS = 512
+
 REFINET_ROUTES = (
     "/auth", "/rpc", "/pid", "/transactions", "/peers",
     "/ledger", "/network", "/directory.json", "/status.json", "/search",
     "/pillar/status", "/identity", "/identity.json", "/identity/verify",
+    "/identity/v3.json",
     "/vault", "/settings", "/sync", "/health", "/health/services",
-    "/onboarding/readiness",
+    "/onboarding/readiness", "/proof",
 )
 
 
@@ -208,7 +240,7 @@ class GopherServer:
         self.is_refinet = is_refinet
         self.tor_manager = tor_manager
         self.pid_data = get_or_create_pid()
-        self.private_key = get_private_key(self.pid_data)
+        self.private_key = get_unlocked_key(self.pid_data)
         self.start_time = time.time()
         self.request_count = 0
         # Use a higher limit for Tor inbound (all traffic appears as 127.0.0.1)
@@ -255,14 +287,12 @@ class GopherServer:
             # Route the request
             response = await self._route(selector)
 
-            # Log as transaction in live DB
+            # Count the request in today's rollup. Serving used to write a
+            # daily_tx row per request — an unbounded, undeletable log any
+            # stranger could fill — so volume lives in daily_metrics now and
+            # daily_tx is reserved for actual transactions.
             content_hash = hash_content(response.encode("utf-8"))
-            record_transaction(
-                dapp_id="gopher.core",
-                pid=self.pid_data["pid"],
-                selector=selector or "/",
-                content_hash=content_hash,
-            )
+            increment_requests_served(self.pid_data["pid"])
 
             # Update daily metrics
             update_daily_metrics(
@@ -286,34 +316,25 @@ class GopherServer:
             except Exception:
                 pass  # Never break serving for indexing failures
 
-            # Generate service proof for token economics (Phase 3).
-            # Proof generation must never interrupt serving.
-            try:
-                proof_ts = int(time.time())
-                proof_payload = f"{self.pid_data['pid']}:gopher.serve:{selector or '/'}:{content_hash}:{proof_ts}"
-                proof_sig = sign_content(proof_payload.encode("utf-8"), self.private_key)
-                proof_hash = hash_content(proof_payload.encode("utf-8"))
-                insert_service_proof(
-                    proof_id=str(uuid.uuid4()),
-                    pid=self.pid_data["pid"],
-                    service="gopher.serve",
-                    proof_hash=proof_hash,
-                    signature=proof_sig,
-                )
-            except Exception:
-                pass  # Never break serving for proof failures
+            # No service proof is written here. A proof only its beneficiary
+            # signed is an assertion: a Pillar could mint any number of them
+            # against a loop of its own requests. A service proof is a receipt
+            # FROM THE REQUESTER, submitted to /proof/receipt (§3.3).
 
             # Append Ed25519 signature block after the response.
             # The block goes AFTER the Gopher "." terminator so legacy
             # clients that stop reading at "." are unaffected. Browsers
             # and peers that know REFInet can parse the trailing block.
-            sig_block = (
-                "\r\n---BEGIN REFINET SIGNATURE---\r\n"
-                f"pid:{self.pid_data['pid']}\r\n"
-                f"pubkey:{self.pid_data['public_key']}\r\n"
-                f"sig:{signature_hex}\r\n"
-                f"hash:{content_hash}\r\n"
-                "---END REFINET SIGNATURE---\r\n"
+            # pid/pubkey/sig/hash keep their original meaning (sig is over
+            # the raw body); v/selector/time/sig1 add the envelope signature
+            # that binds this answer to this selector at this time.
+            sig_block = build_signature_trailer(
+                response.encode("utf-8"),
+                self.private_key,
+                self.pid_data["pid"],
+                self.pid_data["public_key"],
+                selector or "/",
+                int(time.time()),
             )
 
             # Send response + signature block
@@ -613,9 +634,10 @@ class GopherServer:
                     else:
                         chain_id = CHAIN_NAME_TO_ID.get(chain_field.lower())
                         if chain_id is None:
+                            from rpc.chains import supported_chain_names
                             return self._error_response(
                                 f"Unknown chain: {chain_field}. "
-                                f"Supported: ethereum, polygon, arbitrum, base, sepolia"
+                                f"Supported: {supported_chain_names()}"
                             )
                 else:
                     return self._error_response("Format: chain_id|0xAddress or address:chainName")
@@ -680,9 +702,10 @@ class GopherServer:
                     else:
                         chain_id = CHAIN_NAME_TO_ID.get(chain_field.lower())
                         if chain_id is None:
+                            from rpc.chains import supported_chain_names
                             return self._error_response(
                                 f"Unknown chain: {chain_field}. "
-                                f"Supported: ethereum, polygon, arbitrum, base, sepolia"
+                                f"Supported: {supported_chain_names()}"
                             )
                 else:
                     return self._error_response(
@@ -733,9 +756,10 @@ class GopherServer:
                     if isinstance(chain_field, str) and not chain_field.isdigit():
                         chain_id = CHAIN_NAME_TO_ID.get(chain_field.lower())
                         if chain_id is None:
+                            from rpc.chains import supported_chain_names
                             return self._error_response(
                                 f"Unknown chain name: {chain_field}. "
-                                f"Supported: ethereum, polygon, arbitrum, base, sepolia"
+                                f"Supported: {supported_chain_names()}"
                             )
                     else:
                         chain_id = int(chain_field)
@@ -840,6 +864,9 @@ class GopherServer:
             except Exception as e:
                 return self._error_response(f"Broadcast error: {e}")
 
+        elif selector.startswith("/proof/receipt"):
+            return self._handle_receipt(selector, h, p)
+
         elif selector == "/pid":
             pillar_name = self.config.get("pillar_name", "REFInet Pillar")
             onion = self.tor_manager.get_onion_address() if self.tor_manager else None
@@ -923,6 +950,20 @@ class GopherServer:
                     "binding_type": binding["binding_type"],
                     "created_at": binding["created_at"],
                 }
+            return json.dumps(envelope, indent=2) + "\r\n.\r\n"
+
+        elif selector == "/identity/v3.json":
+            # Identity document v3 (§3.2 of the bridge spec). /identity.json
+            # keeps serving schema 2 unchanged for existing readers.
+            from crypto.binding import get_v1_bindings, build_identity_v3
+            from auth.siwe import pillar_authority
+            envelope = build_identity_v3(
+                pid=self.pid_data["pid"],
+                public_key=self.pid_data["public_key"],
+                authority=pillar_authority(self.pid_data["pid"], h, p),
+                bindings=get_v1_bindings(self.pid_data["pid"]),
+                private_key=self.private_key,
+            )
             return json.dumps(envelope, indent=2) + "\r\n.\r\n"
 
         elif selector == "/identity/verify":
@@ -1025,10 +1066,10 @@ class GopherServer:
                 context = selector.split("\t", 1)[1] if "\t" in selector else ""
                 lines = []
                 lines.append(info_line(""))
-                lines.append(info_line("  ZKP AUTHENTICATION"))
+                lines.append(info_line("  KEY-POSSESSION AUTHENTICATION"))
                 lines.append(separator())
                 lines.append(info_line(""))
-                lines.append(info_line("  Generate a Schnorr ZKP proof with your private key"))
+                lines.append(info_line("  Generate a key-possession proof with your private key"))
                 lines.append(info_line(f"  Context: {context or '(none)'}"))
                 lines.append(info_line(""))
                 lines.append(info_line("  Submit proof via /auth/zkp-verify"))
@@ -1055,7 +1096,7 @@ class GopherServer:
                     session = establish_session_zkp(pubkey, proof)
                     lines = []
                     lines.append(info_line(""))
-                    lines.append(info_line("  ZKP AUTHENTICATION SUCCESSFUL"))
+                    lines.append(info_line("  KEY-POSSESSION AUTHENTICATION SUCCESSFUL"))
                     lines.append(separator())
                     lines.append(info_line(f"  Session ID: {session['session_id']}"))
                     lines.append(info_line(f"  Expires: {session['expires_at']}"))
@@ -1178,6 +1219,91 @@ class GopherServer:
         lines.append(info_line(""))
         lines.append(menu_link("  ← Back to Root", "/", h, p))
         lines.append(".\r\n")
+        return "".join(lines)
+
+    def _handle_receipt(self, selector: str, hostname: str, port: int) -> str:
+        """Accept a requester-signed receipt for something this Pillar served.
+
+        Query (Gopher type 7, after the tab) is the §3.3 attestation object
+        as JSON, signed by the requester with their own key. The signer's
+        public key is sent alongside it so the signature can be checked:
+
+            /proof/receipt<TAB>{"receipt": {...}, "public_key": "<64 hex>"}
+
+        This is the only way a service_proofs row is created. A proof with
+        no counter-signature is a request the server chose to log, never
+        work anyone will pay for.
+        """
+        from crypto.attestation import verify_witness
+        from crypto.signing import hash_content as _hash
+
+        query = selector.split("\t", 1)[1] if "\t" in selector else ""
+        if not query:
+            return self._error_response(
+                "Submit a signed receipt as JSON: "
+                '{"receipt": {...}, "public_key": "<64 hex>"}')
+        try:
+            payload = json.loads(query)
+            receipt = payload["receipt"]
+            public_key = payload["public_key"]
+        except (json.JSONDecodeError, KeyError, TypeError) as exc:
+            return self._error_response(f"Malformed receipt: {exc}")
+
+        ok, reason = verify_witness(receipt, public_key)
+        if not ok:
+            return self._error_response(f"Receipt rejected: {reason}")
+
+        resource = receipt.get("resource", "")
+        if len(resource) > MAX_RECEIPT_RESOURCE_CHARS:
+            return self._error_response("Receipt rejected: resource is too long")
+        if self.pid_data["pid"] not in resource:
+            return self._error_response(
+                "Receipt rejected: resource does not name this Pillar")
+        if receipt["pid"] == self.pid_data["pid"]:
+            return self._error_response(
+                "Receipt rejected: a Pillar cannot counter-sign its own service")
+
+        # Intake caps, checked before the write
+        if count_service_proofs_today(
+                pid=self.pid_data["pid"],
+                requester_pid=receipt["pid"]) >= MAX_RECEIPTS_PER_REQUESTER_PER_DAY:
+            return self._error_response(
+                "Receipt rejected: daily limit reached for this requester")
+        if count_service_proofs_today(
+                pid=self.pid_data["pid"]) >= MAX_RECEIPTS_PER_DAY:
+            return self._error_response(
+                "Receipt rejected: daily receipt limit reached for this Pillar")
+
+        canonical = json.dumps(receipt, sort_keys=True)
+        try:
+            stored = insert_service_proof(
+                # Derived from the receipt itself, so re-submitting the same
+                # receipt is a no-op instead of another undeletable row.
+                proof_id=_hash(("REFINET-RECEIPT-v1" + receipt["sig"]).encode("utf-8")),
+                pid=self.pid_data["pid"],
+                service="gopher.serve",
+                proof_hash=_hash(canonical.encode("utf-8")),
+                signature=receipt["sig"],
+                requester_pid=receipt["pid"],
+                requester_pubkey=public_key,
+                resource=resource,
+                receipt_json=canonical,
+                idempotent=True,
+            )
+        except Exception as exc:
+            return self._error_response(f"Could not record receipt: {exc}")
+
+        lines = [
+            info_line(""),
+            info_line("  RECEIPT ACCEPTED" if stored else "  RECEIPT ALREADY ON FILE"),
+            separator(),
+            info_line(f"  From:     {receipt['pid'][:16]}..."),
+            info_line(f"  Resource: {resource}"),
+            info_line(f"  Status:   {receipt['status']}"),
+            info_line(""),
+            menu_link("  \u2190 Back to Root", "/", hostname, port),
+            ".\r\n",
+        ]
         return "".join(lines)
 
     def _build_pillar_status_response(self, hostname: str, port: int) -> str:

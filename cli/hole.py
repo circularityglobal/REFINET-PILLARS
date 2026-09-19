@@ -10,16 +10,23 @@ Subcommands:
 import json
 import sys
 
-from core.gopherhole import create_gopherhole, verify_gopherhole_signature
+from core.gopherhole import (
+    create_gopherhole, verify_gopherhole_signature, namespaced_selector,
+)
 from db.live_db import list_gopherholes, get_gopherhole
 
 
 def cmd_hole_create(args):
     """Register a new gopherhole on this pillar."""
     try:
+        selector = args.selector
+        if getattr(args, "namespaced", False):
+            from crypto.pid import get_or_create_pid
+            slug = selector.rstrip("/").rsplit("/", 1)[-1]
+            selector = namespaced_selector(get_or_create_pid()["pid"], slug)
         result = create_gopherhole(
             name=args.name,
-            selector=args.selector,
+            selector=selector,
             description=args.desc or "",
             owner_address=args.owner or "",
         )
@@ -77,7 +84,8 @@ def cmd_hole_verify(args):
         print(f"  Selector:  {hole['selector']}")
         print(f"  TX Hash:   {hole['tx_hash']}")
     else:
-        print(f"Signature INVALID -- record may be tampered", file=sys.stderr)
+        print(f"INVALID -- signature, PID/key match or selector namespace failed; "
+              f"record may be tampered", file=sys.stderr)
         sys.exit(2)
 
 
@@ -92,6 +100,11 @@ def register_hole_subcommands(subparsers):
     p_create.add_argument("--selector", required=True, help="Path e.g. /holes/mysite")
     p_create.add_argument("--desc", help="Description")
     p_create.add_argument("--owner", help="EVM address (optional)")
+    p_create.add_argument(
+        "--namespaced", action="store_true",
+        help="Serve at /holes/<pid16>/<slug> so the name cannot collide "
+             "with another Pillar's gopherhole",
+    )
     p_create.set_defaults(func=cmd_hole_create)
 
     # list

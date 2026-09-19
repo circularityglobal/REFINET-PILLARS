@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "refinet-pillar"
-version = "0.3.0"
+dynamic = ["version"]
 description = "Sovereign Gopher mesh node with Ed25519 identity and encrypted mesh networking"
 readme = "README.md"
 license = "AGPL-3.0-or-later"
@@ -58,3 +58,6 @@ python_functions = ["test_*"]
 
 [tool.setuptools.packages.find]
 include = ["core*", "crypto*", "db*", "auth*", "mesh*", "rpc*", "cli*", "proxy*", "integration*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "core.version.__version__"}

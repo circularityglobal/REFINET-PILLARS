@@ -35,6 +35,14 @@ def _patch_db_paths(tmp_path, monkeypatch):
     pid_file = home_dir / "pid.json"
     monkeypatch.setattr("core.config.PID_FILE", pid_file)
     monkeypatch.setattr("crypto.pid.PID_FILE", pid_file)
+    # Paths other modules computed from HOME_DIR at import time
+    monkeypatch.setattr("onboarding.wizard.HOME_DIR", home_dir)
+    monkeypatch.setattr("onboarding.wizard.ONBOARDING_STATE_FILE",
+                        home_dir / "onboarding_state.json")
+    monkeypatch.setattr("rpc.config.RPC_CONFIG_PATH", home_dir / "rpc_config.json")
+    # Keys unlocked by one test must not leak into the next
+    from crypto.unlock import lock_all
+    lock_all()
     # Reset the initialization flag so each test re-initializes with patched paths
     import core.gopher_server as _gs
     monkeypatch.setattr(_gs, "_db_initialized", False)

@@ -244,13 +244,17 @@ class TestPeersMenu:
 # 2.5  Chain name ↔ ID mapping
 # ---------------------------------------------------------------------------
 class TestChainMapping:
-    def test_chain_name_to_id_all_five(self):
+    def test_original_chain_names_are_unchanged(self):
+        """These names are wire protocol. New ones may be added beside them."""
         assert CHAIN_NAME_TO_ID["ethereum"] == 1
         assert CHAIN_NAME_TO_ID["polygon"] == 137
         assert CHAIN_NAME_TO_ID["arbitrum"] == 42161
         assert CHAIN_NAME_TO_ID["base"] == 8453
         assert CHAIN_NAME_TO_ID["sepolia"] == 11155111
-        assert len(CHAIN_NAME_TO_ID) == 5
+
+    def test_settlement_chains_were_added(self):
+        for name in ("avalanche", "fuji", "base-sepolia", "xdc", "apothem"):
+            assert name in CHAIN_NAME_TO_ID
 
     def test_chain_id_to_name_reverse(self):
         for name, cid in CHAIN_NAME_TO_ID.items():
@@ -286,7 +290,13 @@ class TestServiceProofs:
             assert row["service"] == "gopher.serve"
 
     @pytest.mark.asyncio
-    async def test_serving_generates_proof(self, gopher_server):
+    async def test_serving_alone_generates_no_proof(self, gopher_server):
+        """A proof only its beneficiary signed is an assertion (F10).
+
+        Before 0.5.0 every request wrote a proof the serving Pillar signed
+        for itself, so a Pillar could mint any number against a loop of its
+        own requests. A proof is now a receipt from the requester.
+        """
         server, port = gopher_server
         await _query(port, "/about")
         import db.live_db as ldb
@@ -294,7 +304,7 @@ class TestServiceProofs:
             count = conn.execute(
                 "SELECT COUNT(*) as cnt FROM service_proofs"
             ).fetchone()["cnt"]
-            assert count >= 1
+            assert count == 0
 
 
 # ---------------------------------------------------------------------------

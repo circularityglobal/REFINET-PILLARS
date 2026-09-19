@@ -98,6 +98,9 @@ async def sync_peer_registry(peer_host: str, peer_port: int, peer_pid: str) -> i
                 pubkey_hex=hole.get("pubkey_hex", ""),
                 signature=hole["signature"],
                 source=peer_pid,
+                # The signature covers registered_at: never re-date a record
+                # on import, or the next hop rejects it as forged.
+                registered_at=hole["registered_at"],
             )
             imported += 1
             logger.info(f"Imported gopherhole '{hole.get('name')}' from peer {peer_pid[:8]}")

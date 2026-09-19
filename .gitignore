@@ -24,3 +24,5 @@ node_modules/
 .vscode/
 .idea/
 ```
+# Local editor/agent settings
+**/settings.local.json

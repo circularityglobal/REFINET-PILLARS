@@ -290,12 +290,19 @@ python3 pillar.py --no-gopher          # Disable standard Gopher server entirely
 .
 ---BEGIN REFINET SIGNATURE---
 pid:af1cc79d09d653a611a653dcd03d3efa...
-sig:3a7b9c...  (Ed25519 signature hex)
-hash:e4f1a2... (SHA-256 content hash)
+pubkey:6b1f...  (Ed25519 public key hex)
+sig:3a7b9c...   (Ed25519 signature over the raw body)
+hash:e4f1a2...  (SHA-256 content hash)
+v:1
+selector:/holes/mysite/README
+time:1789800000
+sig1:9d02...    (Ed25519 over "REFINET-RESPONSE-v1" || pid \n selector \n time \n hash)
 ---END REFINET SIGNATURE---
 ```
 
-This placement is backward-compatible: legacy Gopher clients stop reading at the `.` terminator and never see the block. REFInet-aware clients (the Browser, other Pillars) parse the trailing block for zero-trust response verification. Any client can verify that a response was served by a specific Pillar by checking the signature against the Pillar's public key.
+This placement is backward-compatible: legacy Gopher clients stop reading at the `.` terminator and never see the block. REFInet-aware clients (the Browser, other Pillars) parse the trailing block for zero-trust response verification.
+
+`sig` proves *these bytes* were signed by this Pillar. On its own that is replayable: the same signature is valid for the same bytes served under another selector, or a year later. `sig1` closes that by signing a small envelope — the PID, the selector answered and the time — under the domain string `REFINET-RESPONSE-v1`, so a response signature can never be mistaken for a registry, binding or witness signature made with the same key. `sig` and `hash` keep their original meaning, so clients written against the pre-v1 block keep working; clients that understand `v:1` should verify `sig1` as well.
 
 **Request lifecycle.** Every incoming connection follows a 12-step lifecycle:
 
@@ -496,7 +503,10 @@ A gopherhole is a registered content site on the REFInet mesh. The registry is a
 2. For each record not already in the local registry:
    a. Reconstruct the signing payload: `{pid}:{selector}:{name}:{registered_at}`
    b. Verify the Ed25519 signature using the record's `pubkey_hex`
-   c. Only import records with valid signatures
+   c. Verify that `pid == SHA-256(pubkey_hex)` — the key must be the PID's key, or anyone could register a record claiming any PID and sign it with a key of their own
+   d. Only import records that pass all three
+
+   A record's signed fields are never recomputed by the importer: `registered_at` is carried through exactly as the signer wrote it. Re-dating it on import breaks the record's own signature, so it would verify for one hop and be rejected as forged at the next.
 3. Record the `source` as the replicating peer's PID
 
 Records with invalid signatures are rejected, logged via `logger.warning()`, and persisted to the `daily_tx` ledger as a transaction record with `dapp_id='mesh.replication'`. This creates a permanent, auditable trail of rejected replication attempts and ensures that only authentic, unmodified registrations propagate through the mesh.
@@ -508,23 +518,30 @@ REFInet uses Sign-In with Ethereum (EIP-4361) for wallet-based authentication. N
 **Challenge-response flow:**
 
 1. Client sends an EVM address to `/auth/challenge` (e.g., `0xABC...123`)
-2. Server generates an EIP-4361 message with a CSPRNG nonce (`secrets.token_hex(16)`):
+2. Server generates an EIP-4361 message with a CSPRNG nonce (`secrets.token_hex(16)`) and records that it issued it, for this purpose, with a short expiry:
    ```
-   refinet://pillar wants you to sign in with your Ethereum account:
+   <pillar authority> wants you to sign in with your Ethereum account:
    0xABC...123
 
-   Sign in to REFInet Pillar af1cc79d...
+   Sign in to REFInet Pillar af1cc79d...<full 64-hex PID>
 
-   URI: refinet://pillar
+   URI: refinet://pillar/<full 64-hex PID>
    Version: 1
    Chain ID: 1
    Nonce: <32-char hex>
    Issued At: <ISO 8601>
    Expiration Time: <ISO 8601, +24 hours>
+   Resources:
+   - refinet://pillar/<full 64-hex PID>
    ```
+
+   The first line is this Pillar's own authority (its hostname, or
+   `<pid>.pillar.refinet` when it has none), and the URI names its PID in
+   full. One literal shared by every Pillar identifies nobody: a message
+   issued by Pillar A would be a valid login at Pillar B.
 3. Client signs the message with their wallet's private key
 4. Client submits `address|signature|base64(message_text)` to `/auth/verify` — the message is base64-encoded because SIWE messages contain newlines that cannot survive Gopher's single-line query protocol. The Pillar also accepts plain text as a fallback for direct Gopher clients where the message has no newlines.
-5. Server base64-decodes the message, then recovers the signing address via `ecrecover` and compares against the claimed address
+5. Server base64-decodes the message, then checks, in order: that the statement is not a wallet-binding statement (§5.15), that the URI names this Pillar, and that the nonce is one this Pillar issued for a login and has not spent — the nonce is spent on this attempt whether or not the rest succeeds. It then recovers the signing address via `ecrecover`, falling back to EIP-1271 on the chain the message names when the address is a contract wallet (Safe, ERC-4337)
 6. On success, a session is created with a 64-character random session ID (`secrets.token_hex(32)`)
 
 **Sessions.** Each session lasts 24 hours and is stored in the `siwe_sessions` table. Sessions are write-only — they are never deleted, only revoked by setting `revoked=1`. This creates a permanent, auditable authentication trail.
@@ -633,6 +650,15 @@ High-fee pools (1%) are for exotic pairs.
 - **Port allowlist:** Only ports 70, 7070, and 105 are allowed
 - **Response size cap:** Responses exceeding 2MB are rejected
 
+The browser bridge's `browse_remote` is stricter, because it will follow a
+name a web page supplied. It resolves the host first and judges the
+**address** (`ipaddress.is_private | is_loopback | is_link_local |
+is_reserved | is_multicast`), unwrapping IPv4-mapped IPv6, then connects to
+the address it checked so a second DNS answer cannot redirect it. A string
+prefix check let `0x7f000001`, `2130706433`, `127.1` and
+`[::ffff:127.0.0.1]` through while blocking innocent names like
+`fdroid.org`.
+
 **Path traversal defense.** Static file serving uses a double-layer defense:
 
 1. **Sanitization:** `..` sequences are stripped from the selector
@@ -721,6 +747,36 @@ A Pillar's identity and data are stored in `~/.refinet/`. The following files sh
 
 The `pid.json` file is the most critical — it contains the Ed25519 private key that defines the Pillar's identity. Without it, a new identity must be generated and all peer trust relationships reset.
 
+### 5.15 Wallet Bindings & the Identity Document
+
+A **binding** is the permanent link between an operator's EVM wallet and a Pillar's PID. It carries two signatures: the wallet's, over an EIP-4361 message, and the Pillar's, over the resulting `binding_id`. Neither alone is sufficient.
+
+A binding is its own statement, never a sign-in:
+
+```
+<pillar authority> wants you to sign in with your Ethereum account:
+0xABC...123
+
+I bind this wallet to REFINET Pillar <64-hex pid> as its deployer
+
+URI: refinet://pillar/<64-hex pid>
+Version: 1
+Chain ID: <chain the wallet signed on>
+Nonce: <16 bytes hex, issued for purpose "binding", spent on first use>
+Issued At: <RFC 3339>
+Expiration Time: <Issued At + 10 minutes>
+Resources:
+- refinet://pillar/<64-hex pid>
+```
+
+The statement is the discriminator. A session is refused for it, and a binding is refused without it. Before 0.5.0 a binding was made from an ordinary sign-in signature, which meant any wallet that had ever signed in to a Pillar had handed its operator a valid binding for that wallet, and the signature committed only to a 16-character PID prefix — a 64-bit space, not an identity.
+
+`binding_id = SHA-256(pid || address.lower() || nonce)`. The Pillar counter-signs it under the domain `REFINET-BINDING-v1`, so a binding signature can never be replayed as a response or registry signature made with the same key. The chain id is read from the message, so a binding states the chain the wallet actually signed on. Contract wallets (Safe, ERC-4337) verify through EIP-1271 on that chain.
+
+**The identity document.** `/identity/v3.json` publishes the Pillar's PID, public key, authority and the full append-only list of its bindings, with a signature over the canonical JSON of the document (`REFINET-IDENTITY-v3`). The first `deployer` binding is canonical. Publishing these messages is safe precisely because nothing accepts them as a session. `/identity.json` continues to serve the schema-2 document unchanged.
+
+Bindings are append-only, so a Pillar carrying a pre-0.5.0 binding keeps it; re-signing appends a new record that becomes canonical, and it needs the wallet, so it can never happen silently.
+
 ---
 
 ## 6. Security Model
@@ -736,9 +792,13 @@ REFInet's security is built on defense in depth — multiple independent mechani
 | Content signing | Ed25519 signature per response | Content tampering, replay |
 | Registry immutability | SQL triggers (ABORT on UPDATE/DELETE) | Record modification, deletion |
 | Registry integrity | SHA-256 tx_hash per record | Bit-level tampering |
-| Wallet auth | EIP-4361 SIWE with ecrecover | Unauthorized transactions |
+| Wallet auth | EIP-4361 SIWE with ecrecover, EIP-1271 for contract wallets | Unauthorized transactions |
 | Session tokens | `secrets.token_hex(32)` — 256-bit CSPRNG | Session prediction, brute force |
 | Nonce generation | `secrets.token_hex(16)` — 128-bit CSPRNG | Replay attacks |
+| Challenge registry | Nonce must be one this Pillar issued, for that purpose, spent once | Cross-Pillar replay, purpose confusion |
+| Wallet binding | Its own EIP-4361 statement, never a sign-in message | A login signature becoming a binding |
+| Mesh announcements | Ed25519 over (pid, hostname, port, timestamp) + freshness | LAN peer hijacking |
+| Response envelope | `sig1` binds pid, selector, time and body hash | Replaying a signed answer for another request |
 
 ### Network & Transport
 
@@ -746,7 +806,7 @@ REFInet's security is built on defense in depth — multiple independent mechani
 |-------|-----------|-----------------|
 | Tor transport | End-to-end encryption via onion routing | IP exposure, traffic interception, passive surveillance |
 | Rate limiting | 100 req/60s per IP (direct), 500 req/60s (Tor inbound) | Denial of service, resource exhaustion |
-| SSRF protection | Loopback blocking + port allowlist | Server-side request forgery |
+| SSRF protection | Resolve-then-judge on the address + port allowlist | Server-side request forgery, DNS rebinding |
 | Path traversal | Sanitize + resolve-and-verify | Directory traversal attacks |
 | Response size cap | 2MB max on outbound fetches | Resource exhaustion on client |
 | Connection timeout | 30-second read timeout | Slowloris / connection exhaustion |
@@ -812,18 +872,24 @@ CREATE TABLE IF NOT EXISTS token_state (
 
 Two additional append-only tables provide the foundation for the economic settlement layer:
 
-**`service_proofs`** — Proof of work/service delivery:
+**`service_proofs`** — Receipts for service delivered:
 
 ```sql
 CREATE TABLE IF NOT EXISTS service_proofs (
     proof_id    TEXT PRIMARY KEY,
-    pid         TEXT NOT NULL,
+    pid         TEXT NOT NULL,        -- the serving Pillar
     service     TEXT NOT NULL,        -- e.g. 'gopher.serve', 'mesh.relay'
-    proof_hash  TEXT NOT NULL,        -- SHA-256 of proof payload
-    signature   TEXT NOT NULL,        -- Ed25519 signature by originating PID
+    proof_hash  TEXT NOT NULL,        -- SHA-256 of the receipt
+    signature   TEXT NOT NULL,        -- the REQUESTER's Ed25519 signature
+    requester_pid    TEXT,            -- who signed the receipt
+    requester_pubkey TEXT,
+    resource         TEXT,            -- what was served
+    receipt_json     TEXT,            -- the full receipt object
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
+
+A proof of service is a **receipt from the requester**, submitted to `/proof/receipt`: the client signs `(server_pid, selector, response_hash, time)` with its own key, and the server stores what it received. A proof only its beneficiary signed is an assertion — a Pillar could mint any number of them against a loop of its own requests — so serving a request writes no proof at all. Request volume is counted in `daily_metrics`, which is a per-day rollup rather than a row per request.
 
 **`settlements`** — Inter-Pillar payment records:
 
@@ -832,7 +898,11 @@ CREATE TABLE IF NOT EXISTS settlements (
     settlement_id TEXT PRIMARY KEY,
     payer_pid     TEXT NOT NULL,
     payee_pid     TEXT NOT NULL,
-    amount        REAL NOT NULL,
+    amount        REAL NOT NULL,       -- DEPRECATED (a float cannot hold 1e18)
+    amount_units   TEXT,               -- Canonical: base units, decimal string
+    asset_chain_id INTEGER,
+    asset_address  TEXT,               -- 0x0 for a native coin
+    asset_decimals INTEGER,
     token_type    TEXT NOT NULL,       -- CIFI or REFI
     proof_id      TEXT REFERENCES service_proofs(proof_id),
     created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -840,6 +910,8 @@ CREATE TABLE IF NOT EXISTS settlements (
 ```
 
 Both tables are immutable — protected by SQL triggers that `RAISE(ABORT)` on any `UPDATE` or `DELETE`. Settlements require a valid `proof_id` foreign key, ensuring every payment is backed by a verifiable proof of service.
+
+**Amounts are integers.** Every amount is an integer count of the asset's smallest unit, stored as TEXT and folded in Python with `int` (`db/money.py`) — never summed in SQL. REFI has 18 decimals: a float64 cannot hold 1e18 exactly, and SQLite's INTEGER is i64, which 1e19 overflows. A ledger that rounds is not a ledger. The older `REAL` columns remain for readers written before 0.5.0 and are not used for new records.
 
 ### Planned Economics
 
@@ -1061,7 +1133,7 @@ REFINET-GOPHERSPACE/
 - Peer health monitoring (60-second TCP ping, 4-state escalation)
 - Gopherhole registry replication (5-minute cycle, signature-verified)
 - SIWE authentication (EIP-4361 challenge-response, 24-hour sessions)
-- EVM RPC gateway (5 chains, 4 operations, session-enforced broadcast)
+- EVM RPC gateway (10 chains, 4 operations, session-enforced broadcast)
 - Outbound Gopher client (SSRF protection, port allowlist)
 - CLI: `hole create`, `hole list`, `hole verify`
 - Archive database + automated migration pipeline (24-hour cycle)
@@ -1165,7 +1237,7 @@ REFINET-GOPHERSPACE/
 | `monthly_snapshot` | Composite (year, month, pid) |
 | `peer_history` | Composite (pid, year) |
 
-### Route Map (23 Routes)
+### Route Map (26 Routes)
 
 | # | Selector Pattern | Gopher Type | Handler | Port 70 |
 |---|-----------------|-------------|---------|---------|
@@ -1190,8 +1262,11 @@ REFINET-GOPHERSPACE/
 | 19 | `/peers` | 0 (text) | `build_peers_document` | Gated |
 | 20 | `/ledger` | 0 (text) | `build_ledger_document` | Gated |
 | 21 | `/search` | 7 (search) | Full-text content search | Gated |
-| 22 | `/holes/*` | static | Gopherhole content | Yes |
-| 23 | `*` (fallback) | static | `_serve_static` | Yes |
+| 22 | `/identity.json` | 0 (text) | Identity document, schema 2 | Gated |
+| 23 | `/identity/v3.json` | 0 (text) | Identity document v3 (signed) | Gated |
+| 24 | `/proof/receipt` | 7 (search) | Requester-signed service receipt | Gated |
+| 25 | `/holes/*` | static | Gopherhole content (`/holes/<slug>` or `/holes/<pid16>/<slug>`) | Yes |
+| 26 | `*` (fallback) | static | `_serve_static` | Yes |
 
 ### Background Tasks
 
