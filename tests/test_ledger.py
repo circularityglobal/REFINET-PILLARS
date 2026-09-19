@@ -302,12 +302,20 @@ class TestReceiptIntakeIsBounded:
     found while re-checking: the first version of /proof/receipt stored a new
     row for every submission, including duplicates)."""
 
-    def _submit(self, srv, signer, i=0, resource=None):
+    def _submit(self, srv, signer, i=0, resource=None, at=None):
+        """Submit a receipt. `at` pins the clock.
+
+        A receipt's signature covers its fetched_at, so reading the clock
+        per submission makes "the same receipt" mean different things either
+        side of a second boundary — which is a real distinction the ledger
+        is right to record, and a flaky test if the caller did not mean it.
+        """
         from crypto.attestation import sign_witness
+        base = int(time.time()) if at is None else at
         r = sign_witness(
             get_private_key(signer), signer["pid"],
             resource or f"refinet://pillar/{srv.pid_data['pid']}/about",
-            int(time.time()) - i, f"{i:064d}", "match")
+            base - i, f"{i:064d}", "match")
         return srv._handle_receipt(
             "/proof/receipt\t" + json.dumps(
                 {"receipt": r, "public_key": signer["public_key"]}),
@@ -317,10 +325,11 @@ class TestReceiptIntakeIsBounded:
     async def test_the_same_receipt_is_stored_once(self, server):
         srv, _ = server
         signer = generate_pid()
-        first = self._submit(srv, signer)
+        at = int(time.time())
+        first = self._submit(srv, signer, at=at)
         assert "RECEIPT ACCEPTED" in first
         for _ in range(20):
-            again = self._submit(srv, signer)
+            again = self._submit(srv, signer, at=at)
         assert "ALREADY ON FILE" in again
         assert live_db.count_service_proofs() == 1
 
@@ -330,7 +339,8 @@ class TestReceiptIntakeIsBounded:
         monkeypatch.setattr(gs, "MAX_RECEIPTS_PER_REQUESTER_PER_DAY", 3)
         srv, _ = server
         signer = generate_pid()
-        outs = [self._submit(srv, signer, i) for i in range(6)]
+        at = int(time.time())
+        outs = [self._submit(srv, signer, i, at=at) for i in range(6)]
         assert live_db.count_service_proofs() == 3
         assert sum("daily limit reached for this requester" in o for o in outs) == 3
 
@@ -340,8 +350,9 @@ class TestReceiptIntakeIsBounded:
         import core.gopher_server as gs
         monkeypatch.setattr(gs, "MAX_RECEIPTS_PER_DAY", 4)
         srv, _ = server
+        at = int(time.time())
         for i in range(10):
-            self._submit(srv, generate_pid(), i)
+            self._submit(srv, generate_pid(), i, at=at)
         assert live_db.count_service_proofs() == 4
 
     @pytest.mark.asyncio
