@@ -363,10 +363,12 @@ def verify_identity_v3(doc: dict) -> tuple[bool, str]:
 def build_binding_vector(private_key, pid: str, public_key: str,
                          wallet_key: str, chain_id: int, nonce: str,
                          issued_at: str, company_url: str, authority: str,
-                         created_at: str) -> dict:
+                         created_at: str, protocol: str = None) -> dict:
     """Build the deterministic binding + identity-v3 test vector.
 
     Used by ``python3 -m tests.vectors --write``; no database involved.
+    ``protocol`` pins the document's protocol field so the vector does not
+    change with every release.
     """
     from datetime import datetime
     from eth_account import Account
@@ -397,7 +399,7 @@ def build_binding_vector(private_key, pid: str, public_key: str,
     }
     identity = build_identity_v3(
         pid=pid, public_key=public_key, authority=authority,
-        bindings=[binding], private_key=private_key)
+        bindings=[binding], private_key=private_key, protocol=protocol)
     return {
         "wallet_address": account.address,
         "nonce": nonce,

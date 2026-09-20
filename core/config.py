@@ -109,7 +109,105 @@ WEBSOCKET_ALLOWED_ORIGINS = [
 WEBSOCKET_DEFAULTS = {
     "websocket_extension_ids": [],
     "websocket_require_origin": False,
+    # Bind address. Loopback unless an operator puts a TLS proxy in front.
+    "websocket_host": "127.0.0.1",
+    # Exact web origins (https://app.example.com) admitted beside the
+    # extension/localhost defaults — for an app paired with this Pillar.
+    "websocket_allowed_origins": [],
 }
+
+# ---------------------------------------------------------------------------
+# Public deployment (0.6.0) — a Pillar serving a live domain
+#
+# All off by default: a Pillar that sets none of these behaves exactly as
+# 0.5.0 did.
+# ---------------------------------------------------------------------------
+HTTP_GATEWAY_PORT = 7080
+PUBLIC_DEFAULTS = {
+    # The domain this Pillar answers on (pillar.example.com). It is what the
+    # staking contract lists as the Pillar's endpoint, and where
+    # /.well-known/refinet.json must be served.
+    "public_domain": "",
+    # Other domains (an app's apex, say) that serve this Pillar's
+    # /.well-known/refinet.json and so claim it as theirs.
+    "linked_domains": [],
+    # HTTP gateway: signed Gopher answers over plain HTTP, for browsers,
+    # serverless functions and reverse proxies.
+    "http_gateway_enabled": False,
+    "http_gateway_host": "127.0.0.1",
+    "http_gateway_port": HTTP_GATEWAY_PORT,
+    "http_gateway_cors_origins": [],
+    # Honour X-Forwarded-For. Only behind a proxy you run.
+    "http_gateway_trust_proxy": False,
+}
+
+# ---------------------------------------------------------------------------
+# Staking (0.6.0) — PillarStaking on XDC
+# ---------------------------------------------------------------------------
+REFI_TOKEN_XDC = "0x2D010d707da973E194e41D7eA52617f8F969BD23"
+STAKING_DEFAULTS = {
+    "staking_chain_id": 50,
+    # PillarStaking addresses. Empty = staking features off. Several may be
+    # listed: a Pillar staked in any of them counts, so a successor contract
+    # can be introduced without stranding anyone.
+    "staking_contracts": [],
+    # RPC URL override; otherwise the chain table's endpoint is used.
+    "staking_rpc": "",
+    # Only admit peers (replicate from them) that are active on-chain.
+    "mesh_require_stake": False,
+    # Find peers through the contract's directory (needs staking_contracts).
+    "chain_discovery_enabled": True,
+}
+
+# REFINET_* environment variables override config.json at load time without
+# being written to it — how containers and VPS installs are configured.
+_ENV_OVERRIDES = {
+    "REFINET_PUBLIC_DOMAIN": ("public_domain", "str"),
+    "REFINET_LINKED_DOMAINS": ("linked_domains", "list"),
+    "REFINET_HTTP_GATEWAY": ("http_gateway_enabled", "bool"),
+    "REFINET_HTTP_GATEWAY_HOST": ("http_gateway_host", "str"),
+    "REFINET_HTTP_GATEWAY_PORT": ("http_gateway_port", "int"),
+    "REFINET_HTTP_TRUST_PROXY": ("http_gateway_trust_proxy", "bool"),
+    "REFINET_CORS_ORIGINS": ("http_gateway_cors_origins", "list"),
+    "REFINET_WEBSOCKET_HOST": ("websocket_host", "str"),
+    "REFINET_WEBSOCKET_ORIGINS": ("websocket_allowed_origins", "list"),
+    "REFINET_STAKING_CHAIN_ID": ("staking_chain_id", "int"),
+    "REFINET_STAKING_CONTRACTS": ("staking_contracts", "list"),
+    "REFINET_STAKING_RPC": ("staking_rpc", "str"),
+    "REFINET_MESH_REQUIRE_STAKE": ("mesh_require_stake", "bool"),
+    "REFINET_CHAIN_DISCOVERY": ("chain_discovery_enabled", "bool"),
+    "REFINET_PILLAR_NAME": ("pillar_name", "str"),
+}
+
+
+def apply_env_overrides(cfg: dict, environ=None) -> dict:
+    """Overlay REFINET_* environment variables onto *cfg* (in place)."""
+    environ = os.environ if environ is None else environ
+    for var, (key, kind) in _ENV_OVERRIDES.items():
+        raw = environ.get(var)
+        if raw is None:
+            continue
+        raw = raw.strip()
+        if kind == "bool":
+            cfg[key] = raw.lower() in ("1", "true", "yes", "on")
+        elif kind == "int":
+            try:
+                cfg[key] = int(raw)
+            except ValueError:
+                continue
+        elif kind == "list":
+            cfg[key] = [v.strip() for v in raw.split(",") if v.strip()]
+        else:
+            cfg[key] = raw
+    return cfg
+
+
+def _merge_defaults(cfg: dict) -> dict:
+    for defaults in (TOR_DEFAULTS, WEBSOCKET_DEFAULTS, PUBLIC_DEFAULTS, STAKING_DEFAULTS):
+        for k, v in defaults.items():
+            cfg.setdefault(k, list(v) if isinstance(v, list) else v)
+    cfg.setdefault("discovery_require_signed", False)
+    return cfg
 
 
 def ensure_dirs():
@@ -135,12 +233,7 @@ def load_config() -> dict:
             with open(CONFIG_FILE) as f:
                 cfg = json.load(f)
             # Merge defaults for any missing keys
-            for k, v in TOR_DEFAULTS.items():
-                cfg.setdefault(k, v)
-            for k, v in WEBSOCKET_DEFAULTS.items():
-                cfg.setdefault(k, v)
-            cfg.setdefault("discovery_require_signed", False)
-            return cfg
+            return apply_env_overrides(_merge_defaults(cfg))
         except (json.JSONDecodeError, OSError):
             pass  # Fall through to recreate defaults
     defaults = {
@@ -155,4 +248,6 @@ def load_config() -> dict:
     defaults["discovery_require_signed"] = False
     with open(CONFIG_FILE, "w") as f:
         json.dump(defaults, f, indent=2)
-    return defaults
+    # Public/staking keys are merged in memory, not written: an operator
+    # opts in by adding them to config.json or setting REFINET_* variables.
+    return apply_env_overrides(_merge_defaults(dict(defaults)))

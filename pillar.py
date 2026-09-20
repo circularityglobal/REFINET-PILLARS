@@ -201,6 +201,12 @@ async def main(host: str, port: int, gopher_port: int, enable_mesh: bool,
     from integration.ipc_socket import start_ipc_server
     tasks.append(start_ipc_server(refinet_server, config))
 
+    # HTTP gateway — signed answers over HTTP, for a TLS proxy publishing
+    # this Pillar on a live domain (opt-in: http_gateway_enabled)
+    if config.get("http_gateway_enabled"):
+        from integration.http_gateway import start_http_gateway
+        tasks.append(start_http_gateway(refinet_server, config))
+
     # GopherS (TLS) server — encrypted Gopher on port 7073
     try:
         from crypto.tls import load_or_create_tls_context
@@ -253,6 +259,17 @@ async def main(host: str, port: int, gopher_port: int, enable_mesh: bool,
         tasks.append(periodic_replication())
         tasks.append(periodic_health_check())
 
+    # Chain discovery — staked Pillars on the open internet, found through
+    # the staking contract's directory (only when staking_contracts is set)
+    if config.get("staking_contracts") and config.get("chain_discovery_enabled", True):
+        from mesh.chain_discovery import periodic_chain_discovery
+        tasks.append(periodic_chain_discovery(pid_data["pid"], config))
+        if not enable_mesh:
+            # --no-mesh turns off LAN multicast; peers found on-chain are
+            # still replicated from and health-checked.
+            tasks.append(periodic_replication())
+            tasks.append(periodic_health_check())
+
     # System watchdog — unified health monitoring
     watchdog = SystemWatchdog(
         port=port, host="127.0.0.1",
@@ -280,6 +297,24 @@ async def main(host: str, port: int, gopher_port: int, enable_mesh: bool,
             loop.add_signal_handler(sig, _signal_handler)
         except NotImplementedError:
             pass  # Windows doesn't support add_signal_handler
+
+    async def _supervise(coro, name):
+        """Run a long-lived service, and say so if it stops.
+
+        gather(return_exceptions=True) collects failures into a list nobody
+        reads, so a gateway that could not bind, or a discovery loop that
+        raised on startup, would vanish without a line in the log.
+        """
+        try:
+            await coro
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logging.getLogger("refinet").error(
+                f"Service '{name}' stopped: {exc.__class__.__name__}: {exc}")
+
+    tasks = [_supervise(t, getattr(t, "__qualname__", None) or t.__class__.__name__)
+             for t in tasks]
 
     try:
         # Run all tasks until shutdown signal

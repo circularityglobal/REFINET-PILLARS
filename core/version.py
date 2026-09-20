@@ -6,4 +6,4 @@ pid.json files, /identity/v3.json) reads this value. tests/test_version.py
 asserts pyproject.toml and CHANGELOG.md agree with it.
 """
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"

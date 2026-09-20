@@ -284,58 +284,7 @@ class GopherServer:
                 await self._serve_binary(selector, writer)
                 return
 
-            # Route the request
-            response = await self._route(selector)
-
-            # Count the request in today's rollup. Serving used to write a
-            # daily_tx row per request — an unbounded, undeletable log any
-            # stranger could fill — so volume lives in daily_metrics now and
-            # daily_tx is reserved for actual transactions.
-            content_hash = hash_content(response.encode("utf-8"))
-            increment_requests_served(self.pid_data["pid"])
-
-            # Update daily metrics
-            update_daily_metrics(
-                self.pid_data["pid"],
-                content_served=self.request_count,
-                uptime_seconds=int(time.time() - self.start_time),
-            )
-
-            # Sign and index served content
-            content_type = "menu" if response.startswith("i") or response.startswith("1") else "text"
-            signature_hex = sign_content(response.encode("utf-8"), self.private_key)
-            try:
-                index_content(
-                    selector=selector or "/",
-                    content_type=content_type,
-                    content_hash=content_hash,
-                    signature=signature_hex,
-                    pid=self.pid_data["pid"],
-                    size_bytes=len(response.encode("utf-8")),
-                )
-            except Exception:
-                pass  # Never break serving for indexing failures
-
-            # No service proof is written here. A proof only its beneficiary
-            # signed is an assertion: a Pillar could mint any number of them
-            # against a loop of its own requests. A service proof is a receipt
-            # FROM THE REQUESTER, submitted to /proof/receipt (§3.3).
-
-            # Append Ed25519 signature block after the response.
-            # The block goes AFTER the Gopher "." terminator so legacy
-            # clients that stop reading at "." are unaffected. Browsers
-            # and peers that know REFInet can parse the trailing block.
-            # pid/pubkey/sig/hash keep their original meaning (sig is over
-            # the raw body); v/selector/time/sig1 add the envelope signature
-            # that binds this answer to this selector at this time.
-            sig_block = build_signature_trailer(
-                response.encode("utf-8"),
-                self.private_key,
-                self.pid_data["pid"],
-                self.pid_data["public_key"],
-                selector or "/",
-                int(time.time()),
-            )
+            response, sig_block = await self.respond(selector)
 
             # Send response + signature block
             writer.write((response + sig_block).encode("utf-8"))
@@ -348,6 +297,67 @@ class GopherServer:
         finally:
             writer.close()
             await writer.wait_closed()
+
+    async def respond(self, selector: str) -> tuple[str, str]:
+        """Route, account for, index and sign one request.
+
+        Returns (body, signature trailer). The Gopher listeners and the HTTP
+        gateway both serve through here, so every transport answers with the
+        same signed bytes. The caller counts the request (request_count).
+        """
+        # Route the request
+        response = await self._route(selector)
+
+        # Count the request in today's rollup. Serving used to write a
+        # daily_tx row per request — an unbounded, undeletable log any
+        # stranger could fill — so volume lives in daily_metrics now and
+        # daily_tx is reserved for actual transactions.
+        content_hash = hash_content(response.encode("utf-8"))
+        increment_requests_served(self.pid_data["pid"])
+
+        # Update daily metrics
+        update_daily_metrics(
+            self.pid_data["pid"],
+            content_served=self.request_count,
+            uptime_seconds=int(time.time() - self.start_time),
+        )
+
+        # Sign and index served content
+        content_type = "menu" if response.startswith("i") or response.startswith("1") else "text"
+        signature_hex = sign_content(response.encode("utf-8"), self.private_key)
+        try:
+            index_content(
+                selector=selector or "/",
+                content_type=content_type,
+                content_hash=content_hash,
+                signature=signature_hex,
+                pid=self.pid_data["pid"],
+                size_bytes=len(response.encode("utf-8")),
+            )
+        except Exception:
+            pass  # Never break serving for indexing failures
+
+        # No service proof is written here. A proof only its beneficiary
+        # signed is an assertion: a Pillar could mint any number of them
+        # against a loop of its own requests. A service proof is a receipt
+        # FROM THE REQUESTER, submitted to /proof/receipt (§3.3).
+
+        # Append Ed25519 signature block after the response.
+        # The block goes AFTER the Gopher "." terminator so legacy
+        # clients that stop reading at "." are unaffected. Browsers
+        # and peers that know REFInet can parse the trailing block.
+        # pid/pubkey/sig/hash keep their original meaning (sig is over
+        # the raw body); v/selector/time/sig1 add the envelope signature
+        # that binds this answer to this selector at this time.
+        sig_block = build_signature_trailer(
+            response.encode("utf-8"),
+            self.private_key,
+            self.pid_data["pid"],
+            self.pid_data["public_key"],
+            selector or "/",
+            int(time.time()),
+        )
+        return response, sig_block
 
     async def _route(self, selector: str) -> str:
         """
@@ -965,6 +975,13 @@ class GopherServer:
                 private_key=self.private_key,
             )
             return json.dumps(envelope, indent=2) + "\r\n.\r\n"
+
+        elif selector == "/.well-known/refinet.json":
+            # Domain proof (0.6.0): the same document the HTTP gateway serves
+            # at https://<public_domain>/.well-known/refinet.json.
+            from crypto.wellknown import build_well_known
+            doc = build_well_known(self.pid_data, self.private_key, load_config())
+            return json.dumps(doc, indent=2) + "\r\n.\r\n"
 
         elif selector == "/identity/verify":
             from crypto.binding import get_deployer_binding, verify_binding

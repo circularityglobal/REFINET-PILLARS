@@ -29,7 +29,14 @@ async def sync_peer_registry(peer_host: str, peer_port: int, peer_pid: str) -> i
     Fetch a peer's /directory.json and import any new gopherholes.
     Only imports records with valid Ed25519 signatures.
     Returns count of newly imported records.
+
+    With ``mesh_require_stake`` on, only peers staked on-chain and bound to
+    their staking wallet are replicated from (mesh/admission.py).
     """
+    from mesh.admission import peer_admitted
+    if not await peer_admitted(peer_pid, peer_host, peer_port):
+        return 0
+
     try:
         response = await fetch(peer_host, peer_port, "/directory.json", item_type="0")
         raw = response.text.strip()

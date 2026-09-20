@@ -117,7 +117,7 @@ class WebSocketBridge:
         self.allowed_origins = allowed_origins if allowed_origins is not None else WEBSOCKET_ALLOWED_ORIGINS
 
         config = {}
-        if extension_ids is None or require_origin is None:
+        if extension_ids is None or require_origin is None or allowed_origins is None:
             try:
                 from core.config import load_config
                 config = load_config()
@@ -127,6 +127,12 @@ class WebSocketBridge:
                               else config.get("websocket_extension_ids") or [])
         self.require_origin = (require_origin if require_origin is not None
                                else bool(config.get("websocket_require_origin", False)))
+        # An app paired with this Pillar (https://app.example.com) is added by
+        # exact origin; the defaults above stay as they were.
+        if allowed_origins is None:
+            extra = [o for o in (config.get("websocket_allowed_origins") or [])
+                     if isinstance(o, str) and "://" in o and not o.endswith("://")]
+            self.allowed_origins = list(self.allowed_origins) + extra
         if self.extension_ids:
             self.allowed_origins = (
                 [f"chrome-extension://{i}" for i in self.extension_ids]
@@ -700,7 +706,8 @@ async def start_websocket_bridge(gopher_server, config: dict):
 
     bridge = WebSocketBridge(
         gopher_server=gopher_server,
-        host="127.0.0.1",
+        # Loopback unless the operator fronts it with a TLS proxy
+        host=config.get("websocket_host") or "127.0.0.1",
         port=config.get("websocket_port", WEBSOCKET_PORT),
     )
     await bridge.start()
