@@ -5,7 +5,27 @@
 
 > Sovereign Gopher mesh node. Your cryptographic identity. Your node. Your internet.
 
-**Protocol v0.3.0** | **482 tests passing** | **AGPLv3 License** | **Python 3.9+**
+**Protocol v0.6.0** | **786 tests passing** | **AGPLv3 License** | **Python 3.9+**
+
+---
+
+## Run a Pillar for Your App
+
+Launching an app on its own domain? Add a Pillar before you go live. It runs on
+your VPS or cloud, answers on `pillar.yourdomain.com`, and joins the mesh once
+100,000 REFI are staked for it on XDC.
+
+```bash
+npx @refinet/pillar init --app-domain example.com --pillar-domain pillar.example.com
+npx @refinet/pillar deploy --ssh root@<vps-ip>
+npx @refinet/pillar bind --ssh root@<vps-ip> --address 0xYourWallet
+npx @refinet/pillar stake
+npx @refinet/pillar doctor
+```
+
+The full guide, including running many Pillars on your own infrastructure, is
+[docs/OPERATORS.md](docs/OPERATORS.md). Until the package is published, run the
+CLI from a clone: `node sdk/js/bin/refinet-pillar.js <command>`.
 
 ---
 
@@ -121,6 +141,8 @@ pillar.py recovery split|restore
 - [Platform Overview](PLATFORM_OVERVIEW.md) — Architecture deep dive
 - [Developer Guide](DEV_GUIDE.md) — Module reference and API docs
 - [Whitepaper](WHITEPAPER.md) — Protocol specification
+- [Operator Guide](docs/OPERATORS.md) — Run a Pillar on your domain, next to your app, or at scale
+- [Staking Contract](contracts/README.md) — PillarStaking on XDC: 100,000 REFI, offline fees, 14-day cooldown
 - [Deployment Guide](docs/DEPLOYMENT.md) — Bootstrap node infrastructure setup
 - [Security Policy](SECURITY.md) — Vulnerability reporting
 - [Contributing](CONTRIBUTING.md) — How to contribute
@@ -154,8 +176,11 @@ refinet-pillar/
 ├── browser-extension/       # Chrome extension v0.4.0
 ├── gopherroot/              # Served Gopher content
 ├── website/                 # Landing page & curl installer
-├── deploy/                  # systemd service + install script
-├── docs/                    # Wire formats, backup guide
+├── deploy/                  # systemd, VPS (Docker + Caddy), Kubernetes
+├── contracts/               # PillarStaking (Solidity, Foundry) for XDC
+├── monitor/                 # Liveness monitor: the staking contract's oracle
+├── sdk/                     # @refinet/pillar npm package (verify, deploy, doctor)
+├── docs/                    # Operator guide, wire formats, backup guide
 └── fly.toml                 # Fly.io deployment config
 ```
 

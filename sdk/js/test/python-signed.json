@@ -1,0 +1,39 @@
+{
+  "pid": "3d9e145e4016d4e8d7b621db9eacea63ac72ebc78f0e48d82b370ca7e733e5a7",
+  "well_known": {
+    "schema": "refinet-pillar/1",
+    "protocol": "0.6.0",
+    "pid": "3d9e145e4016d4e8d7b621db9eacea63ac72ebc78f0e48d82b370ca7e733e5a7",
+    "public_key": "7f9e46e8e9dc3c43bfd649ab92084343d8deef98b9a9bae9484452795102cd1a",
+    "domain": "pillar.example.com",
+    "linked_domains": [
+      "example.com",
+      "ünicode.example"
+    ],
+    "endpoints": {
+      "gopher": "gopher://pillar.example.com:7070",
+      "http": "https://pillar.example.com"
+    },
+    "staking": {
+      "chain_id": 50,
+      "contracts": [
+        "0x1111111111111111111111111111111111111111"
+      ]
+    },
+    "issued_at": 1789846995,
+    "signature": "6c80bcccb46eaa4804bf7ec83dcae34761b516ac8383a83080309424ae904970ec9db24f68d933e978e819239f76ceeb4831ba0fb22155728d9e6f79b4d03b08"
+  },
+  "answer": {
+    "body": "{\n  \"pid\": \"3d9e145e4016d4e8d7b621db9eacea63ac72ebc78f0e48d82b370ca7e733e5a7\",\n  \"note\": \"héllo \\u2028 \\\"quoted\\\"\"\n}\r\n.\r\n",
+    "headers": {
+      "X-Refinet-Pid": "3d9e145e4016d4e8d7b621db9eacea63ac72ebc78f0e48d82b370ca7e733e5a7",
+      "X-Refinet-Pubkey": "7f9e46e8e9dc3c43bfd649ab92084343d8deef98b9a9bae9484452795102cd1a",
+      "X-Refinet-Sig": "363b6672235bcf2906ee9b9e574dd6c3b1a66097ec56be8963eaf3f6b6b1811dd9a05cdd356f1a40f15896de36a78b408c6b1d8764af37b6c9c9ea2255278a05",
+      "X-Refinet-Hash": "7dc83407005032b22359e5e27c41024fc4e217bdb206f195b77e815dfaf5cd72",
+      "X-Refinet-V": "1",
+      "X-Refinet-Selector": "/status.json",
+      "X-Refinet-Time": "1789846737",
+      "X-Refinet-Sig1": "c9e263f1717ab87085d283d73ee5d8e7cbe0b6a61a2a84d06c36ba0be6eb8b7c7f528a82193d9c68bff452cbe2c4df5a2f2aac063e90d8587c0083521a44e20f"
+    }
+  }
+}

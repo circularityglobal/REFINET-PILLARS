@@ -1,0 +1,64 @@
+# REFInet Pillar on a VPS, published on your own domain.
+#
+#   cp .env.example .env   # set PILLAR_DOMAIN (and APP_ORIGIN if an app pairs with it)
+#   docker compose up -d --build
+#
+# Caddy obtains the TLS certificate for PILLAR_DOMAIN and serves:
+#   https://PILLAR_DOMAIN/.well-known/refinet.json   domain proof
+#   https://PILLAR_DOMAIN/g/<selector>               signed Gopher answers over HTTP
+#   wss://PILLAR_DOMAIN/ws                           browser bridge (wallet sign-in)
+# and the Pillar itself answers gopher://PILLAR_DOMAIN:7070.
+#
+# The Pillar's key is created on first start inside the pillar-data volume
+# and never leaves it. Back that volume up.
+
+services:
+  pillar:
+    build:
+      context: ../..
+    image: refinet/pillar:local
+    restart: unless-stopped
+    environment:
+      REFINET_GENERATE_PID: "1"
+      REFINET_PID_PASSWORD: ${PILLAR_KEY_PASSWORD:-}
+      REFINET_HOSTNAME: ${PILLAR_DOMAIN:?set PILLAR_DOMAIN in .env}
+      REFINET_PUBLIC_DOMAIN: ${PILLAR_DOMAIN}
+      REFINET_PILLAR_NAME: ${PILLAR_NAME:-REFInet Pillar}
+      REFINET_LINKED_DOMAINS: ${APP_DOMAIN:-}
+      # Gateway and bridge listen inside the compose network only; Caddy is
+      # the one thing that reaches them.
+      REFINET_HTTP_GATEWAY: "1"
+      REFINET_HTTP_GATEWAY_HOST: "0.0.0.0"
+      REFINET_HTTP_TRUST_PROXY: "1"
+      REFINET_CORS_ORIGINS: ${APP_ORIGIN:-}
+      REFINET_WEBSOCKET_HOST: "0.0.0.0"
+      REFINET_WEBSOCKET_ORIGINS: ${APP_ORIGIN:-}
+      REFINET_STAKING_CHAIN_ID: ${STAKING_CHAIN_ID:-50}
+      REFINET_STAKING_CONTRACTS: ${STAKING_CONTRACT:-}
+      REFINET_MESH_REQUIRE_STAKE: ${REQUIRE_STAKE:-0}
+    volumes:
+      - pillar-data:/home/refinet/.refinet
+    ports:
+      - "7070:7070"   # gopher://PILLAR_DOMAIN:7070
+    expose:
+      - "7075"
+      - "7080"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [pillar]
+    environment:
+      PILLAR_DOMAIN: ${PILLAR_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  pillar-data:
+  caddy-data:
+  caddy-config:

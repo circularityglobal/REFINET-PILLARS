@@ -31,3 +31,6 @@ dist/
 
 # Local editor/agent settings
 **/settings.local.json
+
+# The VPS deploy kit ships an example env file; it holds no secrets
+!deploy/vps/.env.example

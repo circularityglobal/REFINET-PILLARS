@@ -35,3 +35,34 @@ jobs:
 
       - name: Run tests
         run: python -m pytest tests/ -v --tb=short -q --timeout=60
+
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install contract dependencies
+        working-directory: contracts
+        run: forge install OpenZeppelin/openzeppelin-contracts@v5.0.2 foundry-rs/forge-std@v1.16.2 --no-git
+
+      - name: Run contract tests
+        working-directory: contracts
+        run: forge test -vv
+
+  sdk:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ["20", "22"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Run SDK tests
+        working-directory: sdk/js
+        run: npm test

@@ -933,6 +933,12 @@ lynx gopher://localhost:7070           # Using lynx
 | `crypto/tls.py` | 136 | TLS certificate management for GopherS |
 | `crypto/hsm.py` | 215 | Hardware security module integration (optional) |
 | `db/audit.py` | 183 | Hash-chained audit log |
+| `crypto/wellknown.py` | 118 | `/.well-known/refinet.json` domain proof: build and verify |
+| `mesh/staking.py` | 271 | PillarStaking reader over JSON-RPC (XDC), cached |
+| `mesh/admission.py` | 128 | Stake-gated peer admission (stake + wallet binding) |
+| `mesh/chain_discovery.py` | 163 | Peer discovery through the staking contract's directory |
+| `integration/http_gateway.py` | 252 | HTTP gateway: signed Gopher answers over HTTP, domain proof, health |
+| `monitor/liveness.py` | 261 | Liveness monitor: probes staked Pillars, records inactive days on-chain |
 | `mesh/encrypted_channel.py` | 172 | End-to-end encrypted peer channel |
 | `proxy/forward_proxy.py` | 308 | Privacy forward proxy (SSRF-guarded, signed tokens) |
 | `cli/peer.py` | 102 | Peer management CLI subcommands |

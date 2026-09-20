@@ -88,6 +88,9 @@ def witness_vector() -> dict:
     }
 
 
+VECTOR_PROTOCOL = "0.5.0"
+
+
 def binding_vector() -> dict | None:
     """Binding + identity v3 — present once the identity step has landed."""
     try:
@@ -100,6 +103,8 @@ def binding_vector() -> dict | None:
         chain_id=BINDING_CHAIN_ID, nonce=FIXED_NONCE, issued_at=FIXED_ISSUED_AT,
         company_url=COMPANY_URL, authority=f"{pid}.pillar.refinet",
         created_at=FIXED_ISSUED_AT,
+        # Fixed, so a release does not re-sign a vector other teams pin
+        protocol=VECTOR_PROTOCOL,
     )
 
 

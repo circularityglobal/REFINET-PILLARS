@@ -18,3 +18,5 @@ site/
 dist/
 build/
 *.egg-info
+contracts/
+sdk/

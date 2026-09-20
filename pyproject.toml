@@ -59,7 +59,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 
 [tool.setuptools.packages.find]
-include = ["core*", "crypto*", "db*", "auth*", "mesh*", "rpc*", "cli*", "proxy*", "integration*"]
+include = ["core*", "crypto*", "db*", "auth*", "mesh*", "rpc*", "cli*", "proxy*", "integration*", "monitor*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "core.version.__version__"}

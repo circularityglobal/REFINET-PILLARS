@@ -3,6 +3,115 @@
 All notable changes to REFInet Pillar are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.0] — Unreleased
+
+Pillars on live domains, admitted by stake. Everything here is opt-in: a
+Pillar that sets none of the new settings behaves exactly as 0.5.0 did, and
+0.5.0 can be run again against the same data directory.
+
+### Added (Staking)
+- `contracts/`: PillarStaking for XDC (REFI `0x2D01…BD23`). 100,000 REFI per
+  Pillar ID to be active; 1 REFI per inactive day, never below 99,999 REFI, so
+  the fee only pauses rewards; 14-day unstake cooldown; no role can block a
+  withdrawal. An inactive day is always recorded — an operator who could
+  suppress the record by unstaking around the oracle's call would erase what
+  rewards are withheld on — while days spent deactivated are recorded and not
+  charged. The contract doubles as the mesh directory (`endpointOf`,
+  `pidsPage`); a withdrawal empties its slot rather than moving another PID
+  into it, so a paging reader cannot miss a Pillar. Not upgradeable; Pillars
+  accept several contract addresses
+- `mesh/staking.py`: reads PillarStaking with plain JSON-RPC (no web3),
+  cached, failing closed after a 6-hour RPC outage
+- `mesh/admission.py`: with `mesh_require_stake`, peers are replicated from
+  only when active on-chain *and* their staking wallet is bound to them in
+  their own `/identity/v3.json`
+- `mesh/chain_discovery.py`: Pillars on the open internet find each other
+  through the staking directory, verifying each endpoint's domain proof. The
+  fetch refuses private addresses, connects to the address it checked, and
+  follows no redirects
+- `monitor/liveness.py`: the oracle. Probes every registered Pillar's
+  `/health` each 15 minutes and, once a UTC day is over, records the Pillars
+  that answered fewer than 80% of their probes. A day the monitor itself
+  covered less than 80% of is not judged at all. Dry run unless `--submit`
+
+### Added (Live domains)
+- `/.well-known/refinet.json` (`crypto/wellknown.py`): a signed domain proof
+  (REFINET-WELL-KNOWN-v1), served over Gopher and the HTTP gateway. An app's
+  domain claims its Pillar by serving the same document
+- `integration/http_gateway.py`: every selector over HTTP at `/g/<selector>`,
+  with the signature trailer as `X-Refinet-*` headers, `/health`, CORS per
+  origin. GET only; loopback unless configured
+- The WebSocket bridge's bind address (`websocket_host`) and extra web origins
+  (`websocket_allowed_origins`) are configurable; defaults unchanged
+- `REFINET_*` environment variables override `config.json` without being
+  written to it (`core/config.py`)
+- Operator mode for the container entrypoint: `REFINET_GENERATE_PID=1` creates
+  the key on the Pillar's own volume on first start. Bootstrap mode
+  (`REFINET_PID_JSON`) is unchanged; `config.json` is now merged, not replaced
+- `deploy/vps/` (Docker Compose + Caddy + one-command installer) and
+  `deploy/kubernetes/` (a StatefulSet: one key, stake and domain per replica)
+- `sdk/js`: the `@refinet/pillar` npm package — `init`, `deploy`, `bind`,
+  `stake`, `doctor`, and a zero-dependency library that verifies gateway
+  answers and domain proofs in Node or a browser
+- `docs/OPERATORS.md`: the operator guide
+
+### Security (found in adversarial review before release)
+- A peer could publish a forged "this wallet runs my Pillar" claim. A binding
+  made before 0.5.0 names no PID and its Ed25519 counter-signature is not
+  domain-separated — and whether a record counts as one is decided by the
+  message the peer supplied. So any EIP-4361 sign-in message a wallet had ever
+  signed, anywhere, could be counter-signed with the attacker's own key and
+  published as a binding for that wallet. Admission now refuses legacy
+  bindings outright: a §3.1 statement names the Pillar it binds to
+- Admission verdicts were cached by PID alone, so a peer approved at its real
+  address was admitted at any other address for the next 10 minutes. The cache
+  key is the address too
+- `X-Forwarded-For` was read from the first element, which is client-supplied:
+  rotating it bypassed the rate limit entirely, and naming a victim's address
+  got that address blocked — on the Gopher port as well, because the limiter
+  was shared with it. The gateway now reads the element its own proxy appended,
+  keeps its own limiter, and ignores header lines whose name has trailing
+  whitespace (which a front proxy would not have sanitised)
+- The SDK accepted an answer whose envelope headers had been stripped, falling
+  back to the body-only signature, which binds neither selector nor time; and
+  its client never checked that the answer's selector was the one requested.
+  Both are now required
+- The liveness monitor would have charged every Pillar on the network for its
+  own outage: a day on which no Pillar answered any probe is now treated as the
+  monitor's failure, not everyone else's. Its probe also verifies a freshly
+  signed answer (`/g/status.json`) instead of an unauthenticated `/health`
+  page any static file server could serve, and its day cursor is persisted, so
+  a restart no longer skips the day in flight and a failed submission is retried
+- Canonical JSON sorted keys by UTF-16 code unit in JavaScript and by code
+  point in Python, so a document with astral-plane keys verified in one
+  implementation and not the other
+- `refinet.config.json` travels in a repo, so its `ssh` value is validated as
+  a destination before it reaches `ssh` — `-oProxyCommand=…` would otherwise
+  have run locally
+
+### Fixed
+- The container could not start on a volume: Docker, Fly and bind mounts
+  present the data directory owned by root, and the Pillar (running as
+  `refinet`) failed with `PermissionError` on `~/.refinet/db`. The image now
+  pre-creates the directory, and the entrypoint hands a root-owned volume to
+  `refinet` and drops root before any Pillar code runs (`REFINET_RUN_AS`).
+  Commands run inside the container use `docker compose exec -u refinet`
+
+### Changed
+- `GopherServer.respond()` holds the route → sign → trailer pipeline that
+  `handle_client` ran inline, so the Gopher listeners and the HTTP gateway
+  serve identical signed bytes
+- The container user is pinned to uid/gid 999 (what it already was) and the
+  image documents ports 7073, 7075 and 7080
+- `doctor` checks that the staking wallet's binding names this Pillar, rather
+  than only that some binding mentions the address
+- A long-lived service that stops is logged instead of vanishing into
+  `gather(return_exceptions=True)`
+- Domain proofs can be refused by age; chain discovery refuses one older than
+  seven days
+- The identity vector pins its `protocol` field, so a release no longer
+  re-signs `tests/fixtures/pillar-vectors.json`; the fixture is unchanged
+
 ## [0.5.0] — Unreleased
 
 Aligns the Pillar with the TradeSphere bridge proposal (findings F1–F20) without

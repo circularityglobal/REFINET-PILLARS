@@ -1,0 +1,14 @@
+{$PILLAR_DOMAIN} {
+	encode gzip
+
+	# Browser bridge (wallet sign-in from a paired app)
+	handle /ws* {
+		reverse_proxy pillar:7075
+	}
+
+	# Everything else: domain proof, health, signed Gopher answers
+	handle {
+		# Caddy sets X-Forwarded-For; the gateway trusts it (REFINET_HTTP_TRUST_PROXY)
+		reverse_proxy pillar:7080
+	}
+}

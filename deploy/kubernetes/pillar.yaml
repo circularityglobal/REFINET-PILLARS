@@ -1,0 +1,117 @@
+# REFInet Pillars on Kubernetes — for an organisation running several
+# Pillars under its own domain (pillar-0.pillars.example.com, ...).
+#
+# Each replica is a separate Pillar: its own key (created on first start in
+# its own PersistentVolume), its own Pillar ID, its own 100,000 REFI stake,
+# and its own endpoint domain. A domain proves exactly one Pillar, so
+# replicas never share a hostname.
+#
+# Replace pillars.example.com, then:
+#   kubectl apply -f pillar.yaml
+#   kubectl -n refinet logs pillar-0 | grep PILLAR_ID
+#
+# Wire your ingress / load balancer so that, for each replica N:
+#   https://pillar-N.pillars.example.com/    -> pillar-N:7080 (HTTP gateway)
+#   https://pillar-N.pillars.example.com/ws  -> pillar-N:7075 (browser bridge)
+#   pillar-N.pillars.example.com:7070 (TCP)  -> pillar-N:7070 (Gopher)
+# The per-replica Services below give each Pillar a stable target.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: refinet
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pillar-config
+  namespace: refinet
+data:
+  PILLARS_DOMAIN: pillars.example.com
+  REFINET_HTTP_GATEWAY: "1"
+  REFINET_HTTP_GATEWAY_HOST: "0.0.0.0"
+  REFINET_HTTP_TRUST_PROXY: "1"
+  REFINET_WEBSOCKET_HOST: "0.0.0.0"
+  REFINET_CORS_ORIGINS: "https://example.com"
+  REFINET_WEBSOCKET_ORIGINS: "https://example.com"
+  REFINET_LINKED_DOMAINS: "example.com"
+  REFINET_STAKING_CHAIN_ID: "50"
+  REFINET_STAKING_CONTRACTS: ""        # PillarStaking address once deployed
+  REFINET_MESH_REQUIRE_STAKE: "0"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pillar
+  namespace: refinet
+spec:
+  serviceName: pillar
+  replicas: 3
+  selector:
+    matchLabels: {app: refinet-pillar}
+  template:
+    metadata:
+      labels: {app: refinet-pillar}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+      containers:
+        - name: pillar
+          image: refinet/pillar:0.6.0
+          # Each replica derives its public domain from its pod name:
+          # pillar-0 -> pillar-0.pillars.example.com
+          command: ["/bin/sh", "-c"]
+          args:
+            - export REFINET_PUBLIC_DOMAIN="${POD_NAME}.${PILLARS_DOMAIN}";
+              export REFINET_HOSTNAME="$REFINET_PUBLIC_DOMAIN";
+              export REFINET_PILLAR_NAME="$REFINET_PUBLIC_DOMAIN";
+              exec python3 scripts/headless_start.py
+          env:
+            - name: POD_NAME
+              valueFrom: {fieldRef: {fieldPath: metadata.name}}
+            - name: REFINET_GENERATE_PID
+              value: "1"
+            - name: REFINET_PID_PASSWORD      # optional: encrypt keys at rest
+              valueFrom:
+                secretKeyRef: {name: pillar-key-password, key: password, optional: true}
+          envFrom:
+            - configMapRef: {name: pillar-config}
+          ports:
+            - {name: gopher, containerPort: 7070}
+            - {name: bridge, containerPort: 7075}
+            - {name: gateway, containerPort: 7080}
+          readinessProbe:
+            httpGet: {path: /health, port: gateway}
+            periodSeconds: 15
+          livenessProbe:
+            tcpSocket: {port: gopher}
+            periodSeconds: 30
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {memory: 512Mi}
+          volumeMounts:
+            - {name: data, mountPath: /home/refinet/.refinet}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests: {storage: 2Gi}
+---
+# One Service per replica so each Pillar has a stable address. Add one per
+# replica you run.
+apiVersion: v1
+kind: Service
+metadata:
+  name: pillar-0
+  namespace: refinet
+spec:
+  selector:
+    statefulset.kubernetes.io/pod-name: pillar-0
+  ports:
+    - {name: gopher, port: 7070, targetPort: gopher}
+    - {name: bridge, port: 7075, targetPort: bridge}
+    - {name: gateway, port: 7080, targetPort: gateway}
