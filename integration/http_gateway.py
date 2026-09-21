@@ -86,7 +86,10 @@ def selector_from_path(target: str) -> str | None:
         selector += "?" + unquote(parts.query)
     if selector == "/":
         selector = ""
-    if "\r" in selector or "\n" in selector or len(selector) > MAX_SELECTOR_CHARS:
+    # A tab is how every Gopher route separates its selector from its
+    # arguments, so an encoded one (%09) would let a caller reach any route
+    # with any argument through this gateway. It is not a path character.
+    if any(c in selector for c in ("\r", "\n", "\t")) or len(selector) > MAX_SELECTOR_CHARS:
         raise ValueError("bad selector")
     return selector
 
@@ -249,6 +252,15 @@ class HTTPGateway:
         if selector.startswith("/download/") and not selector.endswith("/"):
             # Binary downloads are not text answers; they stay on Gopher.
             await self._text(writer, 404, "Downloads are served over Gopher\n", cors, head_only)
+            return
+        # Routes that act for the operator or expose the operator's own data
+        # are never reachable through the public gateway. The server refuses
+        # them too when it is public; this is the second lock, and it answers
+        # 404 rather than confirming the route exists.
+        from core.gopher_server import PRIVATE_ROUTES
+        if any(selector == r or selector.startswith(r + "/") or selector.startswith(r + "?")
+               for r in PRIVATE_ROUTES):
+            await self._text(writer, 404, "Not found\n", cors, head_only)
             return
 
         server.request_count += 1

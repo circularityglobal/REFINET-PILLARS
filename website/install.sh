@@ -1,9 +1,19 @@
 #!/usr/bin/env bash
 # REFInet Pillar — One-line installer
-# Usage: curl -fsSL https://get.refinet.io/install.sh | bash
+# Usage: curl -fsSL https://refinet.io/install.sh | bash
 set -euo pipefail
 
-REFINET_VERSION="0.3.0"
+# Resolved from the latest GitHub release rather than pinned by hand: the
+# pin sat at 0.3.0 through three releases and installed a version older than
+# anything this page described. Override with REFINET_VERSION=x.y.z.
+REFINET_VERSION="${REFINET_VERSION:-$(
+    curl -fsSL https://api.github.com/repos/circularityglobal/REFINET-PILLARS/releases/latest 2>/dev/null \
+    | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"v\{0,1\}\([^"]*\)".*/\1/p' | head -1
+)}"
+if [ -z "${REFINET_VERSION}" ]; then
+    echo "Could not determine the latest release. Set REFINET_VERSION=x.y.z and retry." >&2
+    exit 1
+fi
 INSTALL_DIR="${REFINET_INSTALL_DIR:-$HOME/.refinet/pillar}"
 REPO="https://github.com/circularityglobal/REFINET-PILLARS"
 
@@ -119,6 +129,5 @@ echo ""
 echo "Or install as a system service (Linux):"
 echo "  sudo bash ${INSTALL_DIR}/deploy/install.sh"
 echo ""
-echo "Documentation: https://docs.refinet.io"
-echo "Gopherspace:   gopher://gopher.refinet.io:7070"
+echo "Documentation: https://github.com/circularityglobal/REFINET-PILLARS/tree/main/docs"
 echo ""

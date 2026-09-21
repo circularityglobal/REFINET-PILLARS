@@ -293,9 +293,11 @@ async function cmdDoctor(args) {
       const s = await stakeStatus(contract, pid, { rpc: stakingRpc(cfg) });
       if (!s.registered) fail("Not staked", "Run: npx @refinet/pillar stake");
       else {
-        if (s.active) ok(`Staked ${formatRefi(s.stakeUnits)} REFI — active`);
-        else fail(`Staked ${formatRefi(s.stakeUnits)} REFI — rewards paused`,
-          s.stakeUnits < THRESHOLD_UNITS ? `Top up ${formatRefi(THRESHOLD_UNITS - s.stakeUnits)} REFI to resume.` : "An unstake is pending.");
+        if (s.active) ok(`Staked ${formatRefi(s.stakeUnits)} REFI — active (reward distribution is not live yet)`);
+        else fail(`Staked ${formatRefi(s.stakeUnits)} REFI — not active`,
+          s.stakeUnits < THRESHOLD_UNITS
+            ? `Top up ${formatRefi(THRESHOLD_UNITS - s.stakeUnits)} REFI, then stay up: readmission also needs 2 days with no inactive day recorded.`
+            : "Either an unstake is pending, or an inactive day was recorded in the last 2 days — bring the Pillar up and it readmits itself.");
         if (normalizeDomain(s.endpoint) === cfg.pillarDomain) ok(`On-chain endpoint is ${s.endpoint}`);
         else fail(`On-chain endpoint is "${s.endpoint}", not ${cfg.pillarDomain}`, "Call setEndpoint from the staking wallet.");
         const identity = await createPillarClient(`https://${cfg.pillarDomain}`, { pid }).json("/identity/v3.json");

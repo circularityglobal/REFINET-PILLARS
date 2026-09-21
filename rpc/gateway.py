@@ -2,7 +2,12 @@
 REFInet Pillar — EVM RPC Gateway
 
 Local JSON-RPC proxy for EVM chains. All blockchain calls go through here.
-Supports multiple chains, automatic failover, and request logging.
+Supports multiple chains and request logging.
+
+Several endpoints may be configured per chain, but only the first is used;
+there is no failover yet. It is a local gateway -- a public Pillar refuses
+/rpc outright -- so an endpoint being down degrades that Pillar's own
+wallet views, nothing shared.
 
 Features degrade gracefully when offline (LAN-only mode).
 """
@@ -28,7 +33,9 @@ except ImportError:
 class RPCGateway:
     """
     Local EVM JSON-RPC proxy. All calls go through here.
-    Supports multiple chains, automatic failover, and request logging.
+    Supports multiple chains and request logging. Only ``endpoints[0]`` is
+    used per chain; the rest are configuration for a failover that is not
+    implemented.
     """
 
     def __init__(self):

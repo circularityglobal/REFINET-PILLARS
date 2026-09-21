@@ -1,6 +1,9 @@
 {
   "name": "@refinet/pillar",
   "version": "0.6.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "Pair your app with a REFInet Pillar: verify its signed answers, prove your domain, deploy and check it before you go live.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
@@ -10,7 +13,11 @@
   "bin": {
     "refinet-pillar": "./bin/refinet-pillar.js"
   },
-  "files": ["src", "bin", "README.md"],
+  "files": [
+    "src",
+    "bin",
+    "README.md"
+  ],
   "engines": {
     "node": ">=20"
   },
@@ -22,5 +29,13 @@
     "url": "https://github.com/circularityglobal/REFINET-PILLARS.git",
     "directory": "sdk/js"
   },
-  "keywords": ["refinet", "pillar", "gopher", "mesh", "xdc", "staking", "ed25519"]
+  "keywords": [
+    "refinet",
+    "pillar",
+    "gopher",
+    "mesh",
+    "xdc",
+    "staking",
+    "ed25519"
+  ]
 }

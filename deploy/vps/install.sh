@@ -2,6 +2,8 @@
 # One-command REFInet Pillar install on a fresh VPS (Ubuntu/Debian).
 #
 #   curl -fsSL https://refinet.io/pillar/install-vps.sh | sudo bash -s -- pillar.example.com
+#   (that path proxies to this file on main; any other site path returns the
+#    site's HTML, which must never be piped into a shell)
 #   # or, from a clone:  sudo deploy/vps/install.sh pillar.example.com
 #
 # Installs Docker if missing, clones the repo to /opt/refinet-pillar, writes

@@ -156,22 +156,46 @@ The contract is `contracts/src/PillarStaking.sol` on XDC (chain 50). REFI is
 | Stake to be active | 100,000 REFI per Pillar ID; more is allowed |
 | Offline fee | 1 REFI per inactive UTC day |
 | Lowest a fee can take a stake | 99,999 REFI — the fee pauses rewards; it never takes more |
-| Below 100,000 | the Pillar is inactive and earns nothing; top up to resume |
-| Extra stake | a buffer: each REFI above 100,000 covers one offline day |
-| Unstaking | `requestUnstake` deactivates at once; `withdraw` after 14 days returns everything. Days spent deactivated are never charged, even if you cancel |
-| Fees go to | the rewards pool, which pays Pillars that stayed online |
+| Below 100,000 | the Pillar is inactive and earns nothing; top up, then stay online for the 2-day window to clear |
+| After an offline day | the Pillar is inactive for 2 days whatever it has staked, then readmits itself |
+| Extra stake | a buffer against the *fee*: each REFI above 100,000 covers one offline day. It does not keep you admitted while you are down |
+| Unstaking | `requestUnstake` deactivates at once; `withdraw` after 14 days returns everything. Whole days spent deactivated are never charged, even if you cancel; the request and cancel days themselves are |
+| Fees go to | the rewards pool address. **Reward distribution is not live yet** — see below |
 
 A day is recorded inactive by the liveness monitor when the Pillar did not
 answer most of that day's checks. Short restarts and deploys do not count.
-Rewards are only ever paid for active days, and a day the Pillar was down is
-recorded whatever its state when the monitor runs — that record, not the fee,
-is what withholds rewards.
+A day the Pillar was down is recorded whatever its state when the monitor
+runs, so the record cannot be suppressed by unstaking around it.
+
+**Rewards are not being distributed yet.** There is no distributor contract
+and no emission schedule; nothing pays REFI to an operator today. What exists
+is the evidence trail: every inactive day is recorded on-chain from the day
+the contract is deployed, so whenever distribution does start it can be
+settled against a record that was never retroactive. Stake today for mesh
+admission and for that record — not for an income stream. This page will say
+so plainly when that changes.
+
+**Coming back after an offline day.** The record deactivates the Pillar for two
+days. Topping back up to 100,000 REFI is necessary if a fee took you under it,
+but it is not sufficient and it is not urgent: a top-up is not evidence that
+you are online, or 1 REFI would buy instant readmission. Bring the Pillar back
+up, make sure it answers the monitor, and it readmits itself two days after the
+last recorded day with nothing more to do. If `refinet-pillar doctor` still
+reports you inactive after that, the monitor is still recording days against
+you — check that your endpoint resolves and serves `/.well-known/refinet.json`.
 
 Registering a Pillar ID on-chain proves only that someone staked for it; it
 does not prove they hold its key. Pillars check a peer's signed identity
 document against the staking wallet before trusting it, so a stake pointed at
 a Pillar ID whose key the staker does not hold earns nothing and is admitted
 nowhere.
+
+The reverse is the one thing to know: because the first caller wins, someone
+can register *your* Pillar ID before you do. They gain nothing by it — they
+cannot pass the identity check — but they do hold that ID, and the contract has
+no way to take it back. If it happens, generate a new Ed25519 key: the Pillar
+ID is its SHA-256, so a new key is a new ID, and you register that one instead.
+It costs a key rotation, not your stake.
 
 ---
 

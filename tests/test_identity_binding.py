@@ -202,6 +202,8 @@ class TestContractWallets:
         safe_address = "0x" + "5" * 40
         challenge = create_challenge(safe_address, chain_id=43113,
                                      purpose=PURPOSE_BINDING)
+        # The Pillar states which chains it will believe a contract wallet on.
+        monkeypatch.setattr(wallet_sig, "_accepted_contract_chains", lambda: {43113})
         monkeypatch.setattr(wallet_sig, "verify_eip1271",
                             lambda *a, **k: (True, "valid (EIP-1271)"))
         binding = create_binding(
@@ -211,12 +213,33 @@ class TestContractWallets:
             private_key=key, binding_type="deployer")
         assert binding["evm_address"] == safe_address
 
+    def test_a_contract_wallet_on_an_unaccepted_chain_is_refused(self, pillar, monkeypatch):
+        """Whoever picks the chain picks where the wallet contract lives. A
+        signer who could name it would deploy at the same address on a chain
+        nobody watches and be believed here, so the Pillar picks."""
+        from auth import wallet_sig
+        pid_data, key = pillar
+        safe_address = "0x" + "5" * 40
+        challenge = create_challenge(safe_address, chain_id=43113,
+                                     purpose=PURPOSE_BINDING)
+        monkeypatch.setattr(wallet_sig, "_accepted_contract_chains", lambda: {50})
+        # Even with the contract answering yes, the chain is not one we accept.
+        monkeypatch.setattr(wallet_sig, "verify_eip1271",
+                            lambda *a, **k: (True, "valid (EIP-1271)"))
+        with pytest.raises(ValueError, match="not accepted on chain 43113"):
+            create_binding(
+                pid_data=pid_data, evm_address=safe_address,
+                siwe_message=challenge["message"],
+                siwe_signature="0x" + "ab" * 65,
+                private_key=key, binding_type="deployer")
+
     def test_eip1271_rejection_is_a_rejection(self, pillar, monkeypatch):
         from auth import wallet_sig
         pid_data, key = pillar
         safe_address = "0x" + "5" * 40
         challenge = create_challenge(safe_address, chain_id=43113,
                                      purpose=PURPOSE_BINDING)
+        monkeypatch.setattr(wallet_sig, "_accepted_contract_chains", lambda: {43113})
         monkeypatch.setattr(wallet_sig, "verify_eip1271",
                             lambda *a, **k: (False, "contract rejected the signature"))
         with pytest.raises(ValueError, match="does not match"):

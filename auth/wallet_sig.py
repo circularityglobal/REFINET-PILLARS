@@ -83,6 +83,16 @@ def verify_eip1271(message_text: str, signature: str, address: str,
         return (False, f"EIP-1271 check failed: {exc}")
 
 
+def _accepted_contract_chains() -> set[int]:
+    """Chains this Pillar will verify a contract wallet on."""
+    from core.config import load_config
+    config = load_config()
+    configured = config.get("contract_wallet_chain_ids") or []
+    if configured:
+        return {int(c) for c in configured}
+    return {int(config.get("staking_chain_id", 50))}
+
+
 def verify_wallet_signature(message_text: str, signature: str, address: str,
                             chain_id: int = None,
                             allow_contract: bool = True) -> tuple[bool, str]:
@@ -106,6 +116,13 @@ def verify_wallet_signature(message_text: str, signature: str, address: str,
 
     if chain_id is None:
         chain_id = parse_chain_id(message_text)
+    # The chain decides which contract answers isValidSignature. Letting the
+    # signed message choose it lets a signer deploy a contract at the same
+    # address on a chain nobody watches and be believed here, so the Pillar
+    # states which chains it accepts a contract wallet on.
+    accepted = _accepted_contract_chains()
+    if chain_id not in accepted:
+        return (False, f"{reason}; contract wallets are not accepted on chain {chain_id}")
     ok, contract_reason = verify_eip1271(message_text, signature, address, chain_id)
     if ok:
         return (True, contract_reason)

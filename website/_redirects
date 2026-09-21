@@ -1,2 +1,6 @@
 /install.sh  /install.sh  200
+# Served from the repo so the documented one-liner runs the real script; the
+# catch-all below would otherwise hand back index.html, and the documented
+# command pipes that into sudo bash.
+/pillar/install-vps.sh  https://raw.githubusercontent.com/circularityglobal/REFINET-PILLARS/main/deploy/vps/install.sh  200
 /*    /index.html   200

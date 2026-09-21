@@ -28,17 +28,17 @@ logger = logging.getLogger("refinet.proxy")
 # Default ports allowed for outbound Gopher
 ALLOWED_PORTS = {70, 7070, 105}
 
-# Private/loopback ranges to block (SSRF protection)
-_BLOCKED_PREFIXES = ("127.", "0.", "10.", "192.168.", "172.16.", "172.17.",
-                     "172.18.", "172.19.", "172.20.", "172.21.", "172.22.",
-                     "172.23.", "172.24.", "172.25.", "172.26.", "172.27.",
-                     "172.28.", "172.29.", "172.30.", "172.31.", "169.254.",
-                     "::1", "fe80:", "fd")
+async def _resolve_or_block(host: str, port: int) -> str:
+    """Resolve `host` and return an address it is allowed to visit.
 
-
-def _is_blocked_host(host: str) -> bool:
-    """Check if a host is a private/loopback address."""
-    return any(host.startswith(prefix) for prefix in _BLOCKED_PREFIXES)
+    Judging the hostname string was never enough: a name the caller controls
+    can resolve to 127.0.0.1 (`*.nip.io` and friends), and the same name can
+    answer differently between the check and the connection. Resolving first
+    and connecting to the address that was checked closes both. This is the
+    helper the mesh fetcher already uses; the proxy now shares it.
+    """
+    from integration.websocket_bridge import resolve_public_address
+    return await resolve_public_address(host, port)
 
 
 class ForwardProxy:
@@ -99,23 +99,30 @@ class ForwardProxy:
                 await writer.drain()
                 return
 
-            # SSRF protection
-            if _is_blocked_host(target_host):
-                writer.write(b"3Error: blocked destination\tfake\t(NULL)\t0\r\n.\r\n")
-                await writer.drain()
-                return
-
             if target_port not in ALLOWED_PORTS:
                 writer.write(b"3Error: port not allowed\tfake\t(NULL)\t0\r\n.\r\n")
                 await writer.drain()
                 return
+
+            # SSRF protection. Tor does its own resolution inside the circuit
+            # and never reaches this host's private networks, so only the
+            # direct path resolves and pins here.
+            pinned = target_host
+            if not self.tor_socks_port:
+                try:
+                    pinned = await _resolve_or_block(target_host, target_port)
+                except Exception as e:
+                    logger.info(f"[PROXY] refused {target_host}:{target_port}: {e}")
+                    writer.write(b"3Error: blocked destination\tfake\t(NULL)\t0\r\n.\r\n")
+                    await writer.drain()
+                    return
 
             logger.info(f"[PROXY] {addr[0]} → {target_host}:{target_port}{selector}")
             self.request_count += 1
 
             # Forward request through Tor or direct
             response = await self._forward_request(
-                target_host, target_port, selector
+                pinned, target_port, selector
             )
 
             # Inject PID authentication token as metadata

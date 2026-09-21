@@ -1,41 +1,34 @@
 """Tests for proxy/forward_proxy.py — Privacy Forward Proxy."""
 
 import pytest
-from proxy.forward_proxy import ForwardProxy, ALLOWED_PORTS, _is_blocked_host, _BLOCKED_PREFIXES
+from proxy.forward_proxy import ForwardProxy, ALLOWED_PORTS, _resolve_or_block
 
 
 class TestSSRFProtection:
-    """SSRF blocked address ranges."""
+    """Destinations the proxy must refuse.
 
-    def test_loopback_blocked(self):
-        assert _is_blocked_host("127.0.0.1")
+    These are checked against the resolved address, not the hostname string:
+    judging the string let any caller-controlled name that resolves into a
+    private range through, and let the address change between the check and
+    the connection.
+    """
 
-    def test_loopback_127_x_blocked(self):
-        assert _is_blocked_host("127.1.2.3")
+    @pytest.mark.parametrize("host", [
+        "127.0.0.1", "127.1.2.3", "0.0.0.0", "10.0.0.1", "192.168.1.1",
+        "172.16.0.1", "169.254.1.1", "::1",
+        # Spellings the old prefix check never caught
+        "2130706433",              # decimal 127.0.0.1
+        "0x7f000001",              # hex 127.0.0.1
+        "[::ffff:127.0.0.1]",      # IPv4-mapped IPv6
+        "127.0.0.1.nip.io",        # a public name resolving to loopback
+    ])
+    async def test_private_destinations_are_refused(self, host):
+        with pytest.raises(Exception):
+            await _resolve_or_block(host, 70)
 
-    def test_zero_blocked(self):
-        assert _is_blocked_host("0.0.0.0")
-
-    def test_private_10_blocked(self):
-        assert _is_blocked_host("10.0.0.1")
-
-    def test_private_192_168_blocked(self):
-        assert _is_blocked_host("192.168.1.1")
-
-    def test_private_172_16_blocked(self):
-        assert _is_blocked_host("172.16.0.1")
-
-    def test_link_local_blocked(self):
-        assert _is_blocked_host("169.254.1.1")
-
-    def test_ipv6_loopback_blocked(self):
-        assert _is_blocked_host("::1")
-
-    def test_public_ip_allowed(self):
-        assert not _is_blocked_host("8.8.8.8")
-
-    def test_public_domain_not_blocked(self):
-        assert not _is_blocked_host("example.com")
+    async def test_a_public_address_is_allowed_and_pinned(self):
+        pinned = await _resolve_or_block("8.8.8.8", 70)
+        assert pinned == "8.8.8.8", "the checked address is the one connected to"
 
 
 class TestPortAllowlist:

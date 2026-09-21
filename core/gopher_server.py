@@ -23,6 +23,7 @@ import asyncio
 import base64
 import collections
 import logging
+import secrets
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -182,6 +183,7 @@ def _accounting_date_dict() -> dict:
 MAX_RECEIPTS_PER_REQUESTER_PER_DAY = 500
 MAX_RECEIPTS_PER_DAY = 5000
 MAX_RECEIPT_RESOURCE_CHARS = 512
+ZKP_CHALLENGE_TTL_SEC = 300
 
 REFINET_ROUTES = (
     "/auth", "/rpc", "/pid", "/transactions", "/peers",
@@ -190,6 +192,16 @@ REFINET_ROUTES = (
     "/identity/v3.json",
     "/vault", "/settings", "/sync", "/health", "/health/services",
     "/onboarding/readiness", "/proof",
+)
+
+# Routes that act for the operator or expose the operator's own data. A Pillar
+# serving a public domain publishes its port 7070 straight to the internet and
+# proxies 7080 through Caddy, and `respond` is given no client address, so
+# these cannot be gated per-caller: on a public Pillar they are refused
+# outright. Administration happens locally (`docker compose exec`), which is
+# how the CLI already does it.
+PRIVATE_ROUTES = (
+    "/auth", "/rpc", "/vault", "/settings", "/sync",
 )
 
 
@@ -238,11 +250,19 @@ class GopherServer:
         self.port = port or self.config.get("port", GOPHER_PORT)
         self.hostname = hostname or self.config.get("hostname", "localhost")
         self.is_refinet = is_refinet
+        # A Pillar is "public" once it is serving a domain or the HTTP gateway
+        # is on -- the deployment deploy/vps and deploy/kubernetes describe.
+        self.public_mode = bool(
+            self.config.get("public_domain") or self.config.get("http_gateway_enabled")
+        )
         self.tor_manager = tor_manager
         self.pid_data = get_or_create_pid()
         self.private_key = get_unlocked_key(self.pid_data)
         self.start_time = time.time()
         self.request_count = 0
+        # Outstanding key-possession challenges: nonce -> expiry. Each is
+        # issued by /auth/zkp-challenge and spent by /auth/zkp-verify once.
+        self._zkp_challenges: dict[str, float] = {}
         # Use a higher limit for Tor inbound (all traffic appears as 127.0.0.1)
         tor_active = tor_manager and tor_manager.is_active()
         self.rate_limiter = RateLimiter(
@@ -381,6 +401,16 @@ class GopherServer:
         """
         h = self.hostname
         p = self.port
+
+        # --- Private routes are never served by a public Pillar ---
+        if self.public_mode and any(
+            selector == r or selector.startswith(r + "/") or selector.startswith(r + "?")
+            or selector.startswith(r + "\t")
+            for r in PRIVATE_ROUTES
+        ):
+            return self._error_response(
+                "Not available on a public Pillar. Administer it locally."
+            )
 
         # --- REFInet route gating (port 70 = standard Gopher only) ---
         if not self.is_refinet:
@@ -1079,15 +1109,24 @@ class GopherServer:
 
         elif selector.startswith("/auth/zkp-challenge"):
             try:
-                from crypto.zkp import SchnorrZKP
-                context = selector.split("\t", 1)[1] if "\t" in selector else ""
+                from crypto.zkp import SchnorrZKP  # noqa: F401  (availability check)
+                # The context is issued here, not chosen by the caller: a
+                # caller-supplied one proves possession of nothing in
+                # particular and can be replayed for ever.
+                now = time.time()
+                self._zkp_challenges = {
+                    n: e for n, e in self._zkp_challenges.items() if e > now
+                }
+                context = secrets.token_hex(16)
+                self._zkp_challenges[context] = now + ZKP_CHALLENGE_TTL_SEC
                 lines = []
                 lines.append(info_line(""))
                 lines.append(info_line("  KEY-POSSESSION AUTHENTICATION"))
                 lines.append(separator())
                 lines.append(info_line(""))
-                lines.append(info_line("  Generate a key-possession proof with your private key"))
-                lines.append(info_line(f"  Context: {context or '(none)'}"))
+                lines.append(info_line("  Prove possession of this Pillar's identity key."))
+                lines.append(info_line(f"  Context: {context}"))
+                lines.append(info_line(f"  Valid for: {ZKP_CHALLENGE_TTL_SEC}s, single use"))
                 lines.append(info_line(""))
                 lines.append(info_line("  Submit proof via /auth/zkp-verify"))
                 lines.append(info_line(""))
@@ -1105,8 +1144,18 @@ class GopherServer:
             try:
                 from crypto.zkp import SchnorrZKP
                 proof = json.loads(query)
-                pubkey = proof.get("public_key", "")
+                # Both operands come from the server. Reading the expected
+                # public key and context out of the caller's own proof made
+                # each binding check compare a value with itself, so any
+                # freshly generated keypair authenticated as anybody.
+                pubkey = self.pid_data["public_key"]
                 context = proof.get("context", "")
+                now = time.time()
+                expiry = self._zkp_challenges.pop(context, None)
+                if expiry is None or expiry <= now:
+                    return self._error_response(
+                        "Unknown or expired challenge. Request one from /auth/zkp-challenge."
+                    )
                 valid = SchnorrZKP.verify(proof, pubkey, context=context)
                 if valid:
                     from auth.session import establish_session_zkp

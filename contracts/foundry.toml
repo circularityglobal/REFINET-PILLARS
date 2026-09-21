@@ -16,6 +16,11 @@ remappings = [
 [fuzz]
 runs = 1000
 
+[invariant]
+runs = 256
+depth = 64
+fail_on_revert = false
+
 [rpc_endpoints]
 xdc = "https://rpc.xinfin.network"
 apothem = "https://rpc.apothem.network"

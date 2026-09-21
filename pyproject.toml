@@ -48,7 +48,7 @@ refinet-pillar = "pillar:cli"
 [project.urls]
 Homepage = "https://refinet.io"
 Repository = "https://github.com/circularityglobal/REFINET-PILLARS"
-Documentation = "https://docs.refinet.io"
+Documentation = "https://github.com/circularityglobal/REFINET-PILLARS/blob/main/docs/OPERATORS.md"
 Issues = "https://github.com/circularityglobal/REFINET-PILLARS/issues"
 
 [tool.pytest.ini_options]
@@ -58,8 +58,17 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 
+[tool.setuptools]
+# `refinet-pillar = "pillar:cli"` points at pillar.py, a top-level module.
+# packages.find cannot see a loose module, so without this the console
+# script installs and then fails to import.
+py-modules = ["pillar"]
+
 [tool.setuptools.packages.find]
-include = ["core*", "crypto*", "db*", "auth*", "mesh*", "rpc*", "cli*", "proxy*", "integration*", "monitor*"]
+# onboarding and vault were missing: pillar.py imports onboarding at start-up,
+# so a wheel without it installed a CLI that could not run.
+include = ["core*", "crypto*", "db*", "auth*", "mesh*", "rpc*", "cli*", "proxy*",
+           "integration*", "monitor*", "onboarding*", "vault*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "core.version.__version__"}

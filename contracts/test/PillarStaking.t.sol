@@ -34,6 +34,95 @@ contract FeeOnTransferToken is ERC20 {
     }
 }
 
+/// Reverts any transfer to a blocked address, the way a pausable or
+/// blocklisting token would. Used to prove recording cannot be halted.
+contract BlocklistToken is ERC20 {
+    address public blocked;
+
+    constructor() ERC20("Block", "BLK") {}
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
+
+    function block_(address who) external {
+        blocked = who;
+    }
+
+    function _update(address from, address to, uint256 value) internal override {
+        require(to != blocked, "blocked");
+        super._update(from, to, value);
+    }
+}
+
+/// Hands control to a chosen contract on every transfer, the way an ERC777
+/// style hook would. The staking contract must survive that.
+contract HookToken is ERC20 {
+    ReentrantOperator public hookTarget;
+
+    constructor() ERC20("Hook", "HK") {}
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
+
+    function setHook(ReentrantOperator target) external {
+        hookTarget = target;
+    }
+
+    function _update(address from, address to, uint256 value) internal override {
+        super._update(from, to, value);
+        if (address(hookTarget) != address(0) && from != address(0)) hookTarget.hook();
+    }
+}
+
+/// An operator that is a contract, so a token hook can hand it control in the
+/// middle of its own staking call.
+contract ReentrantOperator {
+    PillarStaking public staking;
+    bytes32 public pid;
+    bytes private _reentry;
+    bool private _armed;
+
+    constructor(PillarStaking staking_, IERC20 token_, bytes32 pid_) {
+        staking = staking_;
+        pid = pid_;
+        token_.approve(address(staking_), type(uint256).max);
+    }
+
+    function arm(bytes memory reentry) external {
+        _reentry = reentry;
+        _armed = true;
+    }
+
+    function hook() external {
+        if (!_armed) return;
+        _armed = false; // fire once, or the recursion never ends
+        (bool ok, bytes memory ret) = address(staking).call(_reentry);
+        if (!ok) {
+            assembly {
+                revert(add(ret, 32), mload(ret))
+            }
+        }
+    }
+
+    function doRegister(uint256 amount) external {
+        staking.register(pid, amount, "reentrant.example");
+    }
+
+    function doTopUp(uint256 amount) external {
+        staking.topUp(pid, amount);
+    }
+
+    function doRequestUnstake() external {
+        staking.requestUnstake(pid);
+    }
+
+    function doWithdraw() external {
+        staking.withdraw(pid);
+    }
+}
+
 contract PillarStakingTest is Test {
     MockREFI refi;
     PillarStaking staking;
@@ -184,7 +273,11 @@ contract PillarStakingTest is Test {
         _record(PID, day);
         assertEq(staking.stakeOf(PID), 99_999 ether);
         assertFalse(staking.isActive(PID));
+        // The fee is accrued, and reaches the pool when anyone sweeps.
+        assertEq(staking.pendingFees(), 1 ether);
+        staking.sweepFees();
         assertEq(refi.balanceOf(pool), 1 ether);
+        assertEq(staking.pendingFees(), 0);
     }
 
     function test_FeesStopAtFloor() public {
@@ -195,7 +288,7 @@ contract PillarStakingTest is Test {
         }
         // Seven inactive days, but only the first one cost anything
         assertEq(staking.stakeOf(PID), 99_999 ether);
-        assertEq(refi.balanceOf(pool), 1 ether);
+        assertEq(staking.pendingFees(), 1 ether);
     }
 
     function test_FloorDayStillRecordedForRewards() public {
@@ -209,27 +302,40 @@ contract PillarStakingTest is Test {
         assertTrue(staking.inactiveRecorded(PID, d2));
     }
 
-    function test_BufferAboveThreshold() public {
+    /// A buffer above the threshold absorbs the fee, but it is not evidence
+    /// of being online: the recorded day deactivates the Pillar regardless of
+    /// how much stake sits on top of it.
+    function test_BufferAboveThresholdAbsorbsTheFeeButNotTheEjection() public {
         _register(alice, PID, T + 3 ether);
         _advanceDays(5);
         uint32 today = _today();
+        // A day backfilled from well inside the window still costs the
+        // buffer, but it says nothing about now: its grace lapsed days ago.
         _record(PID, today - 4);
-        _record(PID, today - 3);
-        _record(PID, today - 2);
-        assertEq(staking.stakeOf(PID), T);
-        assertTrue(staking.isActive(PID), "three days of buffer used, still active");
+        assertEq(staking.stakeOf(PID), T + 2 ether, "the buffer paid the fee");
+        assertTrue(staking.isActive(PID), "an old backfilled day must not deactivate");
+
+        // Yesterday does deactivate it -- while it still holds a buffer well
+        // above the threshold. This is what a large stake used to buy off.
         _record(PID, today - 1);
-        assertFalse(staking.isActive(PID));
-        assertEq(staking.stakeOf(PID), 99_999 ether);
+        assertEq(staking.stakeOf(PID), T + 1 ether);
+        assertGt(staking.stakeOf(PID), staking.THRESHOLD(), "still above the threshold");
+        assertFalse(staking.isActive(PID), "a buffer must not buy admission");
     }
 
-    function test_TopUpResumes() public {
+    function test_TopUpResumesOnceTheGraceWindowLapses() public {
         _register(alice, PID, T);
         _record(PID, _advanceDays(2));
         assertFalse(staking.isActive(PID));
+
         vm.prank(alice);
         staking.topUp(PID, 1 ether);
-        assertTrue(staking.isActive(PID));
+        // The stake is whole again, but a top-up is not evidence of being
+        // online either -- otherwise 1 REFI would buy instant readmission.
+        assertFalse(staking.isActive(PID), "a top-up must not buy instant readmission");
+
+        vm.warp(block.timestamp + (staking.INACTIVE_GRACE_DAYS() + 1) * 1 days);
+        assertTrue(staking.isActive(PID), "readmitted with no further action");
     }
 
     function test_RecordIsIdempotent() public {
@@ -291,7 +397,7 @@ contract PillarStakingTest is Test {
         staking.recordInactive(pids, day);
         assertEq(staking.stakeOf(PID), 99_999 ether);
         assertEq(staking.stakeOf(PID_B), T + 4 ether);
-        assertEq(refi.balanceOf(pool), 2 ether);
+        assertEq(staking.pendingFees(), 2 ether);
     }
 
     /// No sequence of inactive days can take a stake below 99,999 REFI,
@@ -311,8 +417,10 @@ contract PillarStakingTest is Test {
         uint256 headroom = extra + 1 ether;
         uint256 expectedFee = n * 1 ether < headroom ? n * 1 ether : headroom;
         assertEq(T + extra - staked, expectedFee);
-        assertEq(refi.balanceOf(pool), expectedFee);
-        assertEq(refi.balanceOf(address(staking)), staked);
+        assertEq(staking.pendingFees(), expectedFee);
+        assertEq(staking.totalStaked(), staked);
+        // Solvency: every token held is either stake or an unswept fee.
+        assertEq(refi.balanceOf(address(staking)), staking.totalStaked() + staking.pendingFees());
     }
 
     // --------------------------------------------------------------
@@ -411,7 +519,9 @@ contract PillarStakingTest is Test {
 
         _advanceDays(1);
         for (uint32 d = requestDay; d < _today(); d++) _record(PID, d);
-        assertEq(staking.stakeOf(PID), T + 10 ether, "charged for deactivated days");
+        // The request and cancel days are charged: the Pillar was up for all
+        // but a moment of each. Only the whole days between them are free.
+        assertEq(staking.stakeOf(PID), T + 8 ether, "only whole unstaking days are free");
         for (uint32 d = requestDay; d < _today(); d++) {
             assertTrue(staking.inactiveRecorded(PID, d), "day not recorded");
         }
@@ -429,7 +539,7 @@ contract PillarStakingTest is Test {
         assertEq(staking.stakeOf(PID), T + 8 ether, "both earlier days charged");
         _advanceDays(1);
         _record(PID, today);                   // the request day itself
-        assertEq(staking.stakeOf(PID), T + 8 ether, "not charged from the request on");
+        assertEq(staking.stakeOf(PID), T + 7 ether, "the request day is charged too");
         assertTrue(staking.inactiveRecorded(PID, today));
     }
 
@@ -567,6 +677,266 @@ contract PillarStakingTest is Test {
         staking.setFeeRecipient(newPool);
         _register(alice, PID, T);
         _record(PID, _advanceDays(2));
+        staking.sweepFees();
         assertEq(refi.balanceOf(newPool), 1 ether);
+    }
+
+    // --------------------------------------------------------------
+    // Liveness (audit H-1)
+    // --------------------------------------------------------------
+
+    function test_GraceExpiresWithoutOperatorAction() public {
+        _register(alice, PID, T + 10 ether);
+        _record(PID, _advanceDays(2));
+        assertFalse(staking.isActive(PID));
+        assertGe(staking.stakeOf(PID), staking.THRESHOLD(), "never dropped below the threshold");
+
+        vm.warp(block.timestamp + (staking.INACTIVE_GRACE_DAYS() + 1) * 1 days);
+        assertTrue(staking.isActive(PID), "self-heals once the oracle stops recording it");
+    }
+
+    // --------------------------------------------------------------
+    // Fees accrue; sweeps are permissionless (audit M-1)
+    // --------------------------------------------------------------
+
+    /// A fee recipient that cannot receive must never stop days being
+    /// recorded: those records are what reward accounting reads.
+    function test_RecordingSurvivesARevertingFeeRecipient() public {
+        BlocklistToken bad = new BlocklistToken();
+        PillarStaking s = new PillarStaking(IERC20(address(bad)), admin, pool);
+        bad.mint(alice, 1_000_000 ether);
+        vm.startPrank(alice);
+        bad.approve(address(s), type(uint256).max);
+        s.register(PID, T + 10 ether, "x");
+        vm.stopPrank();
+        // Hoisted: an external call in the argument would consume the prank.
+        bytes32 oracleRole = s.ORACLE_ROLE();
+        vm.prank(admin);
+        s.grantRole(oracleRole, oracle);
+        bad.block_(pool); // the pool can no longer receive
+
+        vm.warp(block.timestamp + 2 days);
+        bytes32[] memory pids = new bytes32[](1);
+        pids[0] = PID;
+        vm.prank(oracle);
+        s.recordInactive(pids, uint32(block.timestamp / 1 days) - 1);
+
+        assertTrue(s.inactiveRecorded(PID, uint32(block.timestamp / 1 days) - 1), "day recorded");
+        assertEq(s.pendingFees(), 1 ether, "fee accrued rather than lost");
+
+        vm.expectRevert("blocked");
+        s.sweepFees();
+
+        address goodPool = makeAddr("goodPool");
+        vm.prank(admin);
+        s.setFeeRecipient(goodPool);
+        s.sweepFees();
+        assertEq(bad.balanceOf(goodPool), 1 ether, "fee delivered once a recipient can receive");
+    }
+
+    function test_SweepFeesRevertsWhenNothingAccrued() public {
+        vm.expectRevert(PillarStaking.ZeroAmount.selector);
+        staking.sweepFees();
+    }
+
+    /// Tokens sent straight to the contract used to be stranded forever.
+    function test_SweepExcessRecoversDonationsAndCannotTouchStake() public {
+        _register(alice, PID, T);
+        vm.prank(bob);
+        refi.transfer(address(staking), 500 ether);
+
+        staking.sweepExcess();
+        assertEq(refi.balanceOf(pool), 500 ether, "only the donation moved");
+        assertEq(staking.stakeOf(PID), T, "stake untouched");
+        assertEq(refi.balanceOf(address(staking)), staking.totalStaked() + staking.pendingFees());
+
+        vm.expectRevert(PillarStaking.ZeroAmount.selector);
+        staking.sweepExcess();
+    }
+
+    function test_TotalStakedTracksEveryPath() public {
+        _register(alice, PID, T + 5 ether);
+        _register(bob, PID_B, T);
+        assertEq(staking.totalStaked(), 2 * T + 5 ether);
+
+        vm.prank(alice);
+        staking.topUp(PID, 10 ether);
+        assertEq(staking.totalStaked(), 2 * T + 15 ether);
+
+        _record(PID, _advanceDays(2));
+        assertEq(staking.totalStaked(), 2 * T + 14 ether, "the fee left the stake");
+
+        vm.prank(bob);
+        staking.requestUnstake(PID_B);
+        vm.warp(block.timestamp + 14 days);
+        vm.prank(bob);
+        staking.withdraw(PID_B);
+        assertEq(staking.totalStaked(), T + 14 ether);
+        assertEq(refi.balanceOf(address(staking)), staking.totalStaked() + staking.pendingFees());
+    }
+
+    // --------------------------------------------------------------
+    // Reentrancy (audit M-3)
+    // --------------------------------------------------------------
+
+    function _hookSetup() internal returns (HookToken tok, PillarStaking s, ReentrantOperator op) {
+        tok = new HookToken();
+        s = new PillarStaking(IERC20(address(tok)), admin, pool);
+        op = new ReentrantOperator(s, IERC20(address(tok)), PID);
+        tok.mint(address(op), 1_000_000 ether);
+        // Hoisted: an external call in the argument would consume the prank.
+        bytes32 oracleRole = s.ORACLE_ROLE();
+        vm.prank(admin);
+        s.grantRole(oracleRole, oracle);
+    }
+
+    /// The re-check after `_pull` in topUp exists for exactly this: a hook
+    /// that slips an unstake request in while the deposit is in flight.
+    function test_ReentrantRequestUnstakeDuringTopUpIsCaught() public {
+        (HookToken tok, PillarStaking s, ReentrantOperator op) = _hookSetup();
+        op.doRegister(T);
+        tok.setHook(op);
+        op.arm(abi.encodeCall(PillarStaking.requestUnstake, (PID)));
+
+        vm.expectRevert(PillarStaking.Unstaking.selector);
+        op.doTopUp(10 ether);
+
+        assertEq(s.stakeOf(PID), T, "the deposit did not land on a running cooldown");
+    }
+
+    function test_ReentrantRegisterIsBlockedByTheGuard() public {
+        (HookToken tok,, ReentrantOperator op) = _hookSetup();
+        tok.setHook(op);
+        op.arm(abi.encodeCall(PillarStaking.register, (PID_B, T, "b")));
+
+        vm.expectRevert(bytes4(keccak256("ReentrancyGuardReentrantCall()")));
+        op.doRegister(T);
+    }
+
+    function test_ReentrantWithdrawIsBlockedByTheGuard() public {
+        (HookToken tok,, ReentrantOperator op) = _hookSetup();
+        op.doRegister(T);
+        op.doRequestUnstake();
+        vm.warp(block.timestamp + 14 days);
+        tok.setHook(op);
+        op.arm(abi.encodeCall(PillarStaking.withdraw, (PID)));
+
+        vm.expectRevert(bytes4(keccak256("ReentrancyGuardReentrantCall()")));
+        op.doWithdraw();
+    }
+
+    /// Withdraw clears the Pillar before it pays out, so a hook that comes
+    /// back in finds nothing left to act on.
+    function test_WithdrawClearsStateBeforePayingOut() public {
+        (HookToken tok, PillarStaking s, ReentrantOperator op) = _hookSetup();
+        op.doRegister(T);
+        op.doRequestUnstake();
+        vm.warp(block.timestamp + 14 days);
+        tok.setHook(op);
+        op.arm(abi.encodeCall(PillarStaking.requestUnstake, (PID)));
+
+        vm.expectRevert(PillarStaking.NotRegistered.selector);
+        op.doWithdraw();
+    }
+
+    // --------------------------------------------------------------
+    // Hygiene (audit L-1, L-2)
+    // --------------------------------------------------------------
+
+    /// A re-registered PID keeps the old operator's records in storage, but
+    /// the cooldown is longer than the backfill window, so none of them can
+    /// reach the new registration.
+    function test_StaleInactiveRecordsCannotChargeAReRegisteredPid() public {
+        _register(alice, PID, T + 10 ether);
+        uint32 staleDay = _advanceDays(2);
+        _record(PID, staleDay);
+        assertTrue(staking.inactiveRecorded(PID, staleDay));
+
+        vm.prank(alice);
+        staking.requestUnstake(PID);
+        vm.warp(block.timestamp + 14 days);
+        vm.prank(alice);
+        staking.withdraw(PID);
+
+        _register(bob, PID, T);
+        assertTrue(staking.inactiveRecorded(PID, staleDay), "the record survives deletion");
+        assertTrue(staking.isActive(PID), "but it does not follow the new operator");
+        assertEq(staking.stakeOf(PID), T);
+
+        bytes32[] memory pids = new bytes32[](1);
+        pids[0] = PID;
+        vm.prank(oracle);
+        vm.expectRevert(abi.encodeWithSelector(PillarStaking.DayOutOfRange.selector, staleDay));
+        staking.recordInactive(pids, staleDay);
+    }
+
+    function test_ConstructorRejectsItselfAsFeeRecipient() public {
+        address predicted = vm.computeCreateAddress(address(this), vm.getNonce(address(this)));
+        vm.expectRevert(PillarStaking.ZeroAddress.selector);
+        new PillarStaking(IERC20(address(refi)), admin, predicted);
+    }
+
+    // --------------------------------------------------------------
+    // Audit regressions: the two ejection bypasses (H-1, H-2)
+    //
+    // Both assert the secure behaviour and both failed against the
+    // contract as first written. They are the reason isActive carries a
+    // liveness term and the unstaking exemption is exclusive.
+    // --------------------------------------------------------------
+
+    /// H-1: stake above the threshold is headroom the 1 REFI/day fee must
+    /// chew through before `isActive` can ever go false. At 250,000 REFI
+    /// that is 150,000 offline days. No attack required — just over-stake.
+    function test_Exploit_OverStakeGrantsImmunityFromEjection() public {
+        _register(alice, PID, 250_000 ether);
+
+        // 200 consecutive offline days, recorded honestly by the oracle.
+        // The registration day itself is never charged, hence 199.
+        for (uint256 i = 0; i < 200; i++) {
+            vm.warp(block.timestamp + 1 days);
+            _record(PID, _today() - 1);
+        }
+
+        assertEq(staking.stakeOf(PID), 250_000 ether - 199 ether, "every day charged");
+        assertFalse(
+            staking.isActive(PID),
+            "EXPLOIT H-1: offline for 200 days and still admitted to the mesh"
+        );
+    }
+
+    /// H-2: the unstaking exemption is granted per whole UTC day, but the
+    /// deactivation it pays for is measured in seconds. Only the latest
+    /// stretch is kept, so blind toggling does NOT work -- but an operator
+    /// who back-runs the oracle's daily transaction keeps the one stretch
+    /// always covering the day being recorded, and pays nothing while being
+    /// deactivated for roughly 90 minutes per two days.
+    function test_Exploit_BackRunningTheOracleGrantsFeeImmunity() public {
+        _register(alice, PID, T); // exactly at threshold: one fee would eject it
+        uint32 regDay = _today();
+
+        // 23:59 on the day after registration.
+        vm.warp((uint256(regDay) + 1) * 1 days + 1 days - 60);
+
+        for (uint256 cycle = 0; cycle < 10; cycle++) {
+            uint32 x = _today();
+
+            vm.prank(alice);
+            staking.requestUnstake(PID); // 23:59 day X -> stretch [X, max]
+
+            vm.warp((uint256(x) + 1) * 1 days + 1 hours);
+            _record(PID, x); // oracle records day X at 01:00 -- inside the stretch
+
+            vm.warp(block.timestamp + 30 minutes);
+            vm.prank(alice);
+            staking.cancelUnstake(PID); // 01:30 day X+1 -> stretch [X, X+1]
+
+            vm.warp((uint256(x) + 2) * 1 days + 1 hours);
+            _record(PID, x + 1); // oracle records day X+1 -- still inside it
+
+            vm.warp((uint256(x) + 2) * 1 days + 1 days - 60); // 23:59 day X+2
+        }
+
+        assertEq(staking.stakeOf(PID), 99_999 ether, "EXPLOIT H-2: paid nothing for 20 days offline");
+        assertFalse(staking.isActive(PID), "EXPLOIT H-2: offline the whole time, still active");
     }
 }

@@ -147,6 +147,11 @@ PUBLIC_DEFAULTS = {
 REFI_TOKEN_XDC = "0x2D010d707da973E194e41D7eA52617f8F969BD23"
 STAKING_DEFAULTS = {
     "staking_chain_id": 50,
+    # Chains on which a contract wallet's EIP-1271 signature is accepted.
+    # Empty means "the staking chain only". This is not a convenience list:
+    # whoever picks the chain picks where the wallet contract lives, so it
+    # must be the Pillar's choice, never the signer's.
+    "contract_wallet_chain_ids": [],
     # PillarStaking addresses. Empty = staking features off. Several may be
     # listed: a Pillar staked in any of them counts, so a successor contract
     # can be introduced without stranding anyone.
@@ -172,6 +177,7 @@ _ENV_OVERRIDES = {
     "REFINET_WEBSOCKET_HOST": ("websocket_host", "str"),
     "REFINET_WEBSOCKET_ORIGINS": ("websocket_allowed_origins", "list"),
     "REFINET_STAKING_CHAIN_ID": ("staking_chain_id", "int"),
+    "REFINET_CONTRACT_WALLET_CHAINS": ("contract_wallet_chain_ids", "list"),
     "REFINET_STAKING_CONTRACTS": ("staking_contracts", "list"),
     "REFINET_STAKING_RPC": ("staking_rpc", "str"),
     "REFINET_MESH_REQUIRE_STAKE": ("mesh_require_stake", "bool"),

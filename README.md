@@ -51,7 +51,7 @@ Each Pillar is:
 - A **mesh participant** discovering neighbors via UDP multicast and replicating registries
 - A **local ledger** tracking all transactions in SQLite (13-month live + yearly archive)
 - A **browser bridge** connecting wallets via SIWE (EIP-4361) and WebSocket
-- A **gateway** to 5 EVM chains via built-in RPC proxy
+- A **gateway** to 10 EVM chains via built-in RPC proxy
 - A **Tor hidden service** (optional) for anonymous .onion access
 
 ---

@@ -16,7 +16,16 @@ Pillar that sets none of the new settings behaves exactly as 0.5.0 did, and
   withdrawal. An inactive day is always recorded — an operator who could
   suppress the record by unstaking around the oracle's call would erase what
   rewards are withheld on — while days spent deactivated are recorded and not
-  charged. The contract doubles as the mesh directory (`endpointOf`,
+  charged, and only days spent *entirely* deactivated are exempt: the request
+  and cancel days are charged, so toggling an unstake across midnight cannot
+  buy two free days for twenty seconds offline. A recorded inactive day also
+  deactivates the Pillar for two days whatever it has staked — the fee alone
+  could not, because it stops at 99,999 REFI and a Pillar holding a large
+  buffer above the threshold would otherwise stay admitted for as many days as
+  it holds REFI above it. Fees accrue to `pendingFees` and are moved by a
+  permissionless `sweepFees()`, so a fee recipient that cannot receive can
+  never stop days being recorded; `sweepExcess()` recovers stray tokens, and
+  neither sweep can touch stake. The contract doubles as the mesh directory (`endpointOf`,
   `pidsPage`); a withdrawal empties its slot rather than moving another PID
   into it, so a paging reader cannot miss a Pillar. Not upgradeable; Pillars
   accept several contract addresses

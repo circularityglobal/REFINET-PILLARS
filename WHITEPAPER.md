@@ -45,7 +45,7 @@ When Tor mode is enabled, the Pillar generates a second identity — a `.onion` 
 
 REFInet proposes a return to the original architecture of the internet — where every computer is a server — augmented with the cryptographic primitives, anonymous transport, and economic incentives that the early internet lacked. The result is a lightweight, offline-first, LAN-capable computing platform that scales from a single Raspberry Pi to a global mesh of sovereign, anonymous nodes.
 
-This whitepaper describes the architecture, capabilities, and security model of REFInet as implemented in the current codebase (v0.3.0). Every technical claim in this document corresponds to running, tested code.
+This whitepaper describes the architecture, capabilities, and security model of REFInet. Except where a section is explicitly marked as planned, every technical claim corresponds to running, tested code in the current codebase. The notable exception is REFI earning: the staking, liveness and evidence layers are implemented and tested, but **no reward distribution exists yet** — the rows describing REFI as earned income are design, not shipped behaviour.
 
 ---
 
@@ -852,7 +852,7 @@ REFInet's token system is designed but not yet activated. The database schema is
 | Token | Purpose | Mechanism |
 |-------|---------|-----------|
 | **CIFI** | Staking collateral | Staked on-chain to activate a Pillar license |
-| **REFI** | Activity rewards | Earned by serving content, maintaining uptime, participating in the mesh |
+| **REFI** | Activity rewards *(planned)* | Intended to be earned by serving content, maintaining uptime and participating in the mesh. No distributor exists yet; see §Roadmap |
 
 ### Schema (Ready)
 
@@ -877,7 +877,7 @@ CREATE TABLE IF NOT EXISTS token_state (
 | Tier | Description |
 |------|-------------|
 | `free` | Default. All Pillar features available. No REFI rewards. |
-| `pro` | CIFI staked. REFI earning enabled. Enhanced mesh priority. |
+| `pro` | CIFI staked. REFI earning *(planned)*. Enhanced mesh priority. |
 | `enterprise` | Higher stake threshold. Premium routing, higher REFI multiplier. |
 
 ### Service Proofs & Settlements (Ready)
@@ -928,7 +928,7 @@ Both tables are immutable — protected by SQL triggers that `RAISE(ABORT)` on a
 ### Planned Economics
 
 - **License activation:** A Pillar stakes CIFI on-chain. The staking transaction hash is recorded in `blockchain_tx`. The Pillar's `license_active` flag is set to 1 and `license_tier` is upgraded.
-- **Activity-based issuance:** Licensed Pillars earn REFI based on content served, uptime, and mesh participation. The metrics infrastructure (`daily_metrics`) already tracks the inputs.
+- **Activity-based issuance *(planned)*:** Licensed Pillars would earn REFI based on content served, uptime, and mesh participation. The metrics infrastructure (`daily_metrics`) already tracks the inputs and PillarStaking already records inactive days on-chain, but no issuance or distribution code exists.
 - **Service proof flow:** Pillar serves content → generates a `service_proof` record → settlement engine creates a `settlements` record linking payment to proof.
 - **On-chain anchoring:** REFI issuance events can be anchored to EVM chains via the RPC gateway, creating a verifiable link between off-chain activity and on-chain state.
 

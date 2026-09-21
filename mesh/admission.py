@@ -4,8 +4,9 @@ REFInet Pillar — Stake-gated peer admission
 With ``mesh_require_stake`` off (the default) every peer is admitted, as
 before 0.6.0. With it on, a peer is admitted only when:
 
-  1. PillarStaking says ``isActive(pid)`` — at least 100,000 REFI staked
-     and no unstake pending; and
+  1. PillarStaking says ``isActive(pid)`` — at least 100,000 REFI staked,
+     no unstake pending, and no day recorded inactive against it in the
+     last two days; and
   2. the wallet that staked (``operatorOf(pid)``) is bound to the PID by a
      §3.1 binding in the peer's own signed ``/identity/v3.json``, and that
      binding verifies (wallet signature + Pillar counter-signature).
@@ -88,8 +89,9 @@ async def check_peer(pid: str, host: str, port: int, reader,
     try:
         status = await reader.status(pid)
         if not status.active:
-            why = status.error or ("below 100,000 REFI or unstaking" if status.operator
-                                   else "not registered")
+            why = status.error or (
+                "below 100,000 REFI, unstaking, or recorded inactive in the last 2 days"
+                if status.operator else "not registered")
             return (False, f"not active on-chain ({why})")
         doc = await fetch_identity(host, port)
         ok, reason = verify_identity_v3(doc)

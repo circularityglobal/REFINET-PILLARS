@@ -11,9 +11,15 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 ///         at least 100,000 REFI staked against its Pillar ID (PID).
 ///
 ///         An inactive day costs 1 REFI, but a fee can never take a stake
-///         below 99,999 REFI: its only job is to drop the Pillar under the
-///         threshold, which pauses its rewards until the operator tops up.
-///         Nothing here can take more than that from an operator.
+///         below 99,999 REFI. Nothing here can take more than that from an
+///         operator.
+///
+///         The fee is a price, not the enforcement. What deactivates a
+///         Pillar is the recorded day itself: a day recorded inactive keeps
+///         it out for INACTIVE_GRACE_DAYS however much it has staked. The
+///         fee alone could not do that job, because it stops at 99,999 REFI
+///         and so a Pillar holding a large buffer above the threshold would
+///         stay admitted for as many days as it holds REFI above it.
 ///
 ///         The contract is also the mesh directory: every registered PID
 ///         carries the public endpoint (a domain) where its Pillar answers,
@@ -38,9 +44,20 @@ contract PillarStaking is AccessControl, ReentrancyGuard {
     uint32 public constant MAX_BACKFILL_DAYS = 7;
     /// @notice A DNS name is at most 253 characters.
     uint256 public constant MAX_ENDPOINT_LENGTH = 253;
+    /// @notice How long a Pillar stays deactivated after a day it was
+    ///         recorded inactive while it was supposed to be up. Must exceed
+    ///         the oracle's recording lag (a day is recorded the day after it
+    ///         ends) or the deactivation would never be observable.
+    uint32 public constant INACTIVE_GRACE_DAYS = 2;
 
     IERC20 public immutable token;
     address public feeRecipient;
+    /// @notice The sum of every Pillar's stake. Held for the operators.
+    uint256 public totalStaked;
+    /// @notice Fees charged but not yet swept to the fee recipient. Kept
+    ///         separate so recording an inactive day never depends on the
+    ///         recipient being able to receive.
+    uint256 public pendingFees;
 
     struct Pillar {
         address operator;
@@ -55,6 +72,11 @@ contract PillarStaking is AccessControl, ReentrancyGuard {
         // inside the 7-day backfill window keeps only the newer one.
         uint32 unstakeFromDay;
         uint32 unstakeToDay;
+        // The most recent day this Pillar was recorded inactive while it was
+        // supposed to be up. Deactivates it for INACTIVE_GRACE_DAYS however
+        // large its stake, so a buffer above the threshold can no longer buy
+        // immunity from ejection. Packs into the slot above; costs no gas.
+        uint32 lastInactiveDay;
         string endpoint;
     }
 
@@ -76,6 +98,8 @@ contract PillarStaking is AccessControl, ReentrancyGuard {
     ///         Reward accounting reads these: no rewards for inactive days.
     event InactiveDay(bytes32 indexed pid, uint32 indexed day, uint256 fee, uint256 staked);
     event FeeRecipientSet(address feeRecipient);
+    event FeesSwept(address indexed to, uint256 amount);
+    event ExcessSwept(address indexed to, uint256 amount);
 
     error ZeroAddress();
     error ZeroPid();
@@ -91,7 +115,10 @@ contract PillarStaking is AccessControl, ReentrancyGuard {
     error DayOutOfRange(uint32 day);
 
     constructor(IERC20 token_, address admin, address feeRecipient_) {
-        if (address(token_) == address(0) || admin == address(0) || feeRecipient_ == address(0)) {
+        if (
+            address(token_) == address(0) || admin == address(0) || feeRecipient_ == address(0)
+                || feeRecipient_ == address(this)
+        ) {
             revert ZeroAddress();
         }
         token = token_;
@@ -128,6 +155,7 @@ contract PillarStaking is AccessControl, ReentrancyGuard {
         p.staked = received;
         p.registeredAt = uint64(block.timestamp);
         p.endpoint = endpoint;
+        totalStaked += received;
 
         _pids.push(pid);
         _pidIndexPlusOne[pid] = _pids.length;
@@ -145,6 +173,7 @@ contract PillarStaking is AccessControl, ReentrancyGuard {
         // already-running cooldown.
         if (p.unstakeRequestedAt != 0) revert Unstaking();
         p.staked += received;
+        totalStaked += received;
         emit ToppedUp(pid, received, p.staked);
     }
 
@@ -184,6 +213,7 @@ contract PillarStaking is AccessControl, ReentrancyGuard {
 
         uint256 amount = p.staked;
         address operator = p.operator;
+        totalStaked -= amount;
         _removePid(pid);
         delete _pillars[pid];
 
@@ -219,18 +249,61 @@ contract PillarStaking is AccessControl, ReentrancyGuard {
             // The fee, though, is judged for the day itself: a Pillar that
             // had already asked to unstake was deactivated and earning
             // nothing, so it is recorded and not charged.
+            // Only days spent ENTIRELY in the unstaking state are exempt.
+            // The bounds are exclusive because the request and cancel days
+            // are days the Pillar was up for all but a moment: an inclusive
+            // range let an operator request at 23:59:50 and cancel at
+            // 00:00:10 to buy two whole days for twenty seconds offline.
             bool unstakingThatDay =
-                p.unstakeFromDay != 0 && day >= p.unstakeFromDay && day <= p.unstakeToDay;
+                p.unstakeFromDay != 0 && day > p.unstakeFromDay && day < p.unstakeToDay;
             uint256 fee;
-            if (!unstakingThatDay && p.staked > FEE_FLOOR) {
-                uint256 headroom = p.staked - FEE_FLOOR;
-                fee = headroom < FEE_PER_DAY ? headroom : FEE_PER_DAY;
-                p.staked -= fee;
-                total += fee;
+            if (!unstakingThatDay) {
+                // Recorded against the Pillar whether or not a fee was owed:
+                // this, not the stake level, is what deactivates it, so a
+                // large buffer above the threshold no longer buys immunity.
+                if (day > p.lastInactiveDay) p.lastInactiveDay = day;
+                if (p.staked > FEE_FLOOR) {
+                    uint256 headroom = p.staked - FEE_FLOOR;
+                    fee = headroom < FEE_PER_DAY ? headroom : FEE_PER_DAY;
+                    p.staked -= fee;
+                    total += fee;
+                }
             }
             emit InactiveDay(pid, day, fee, p.staked);
         }
-        if (total > 0) token.safeTransfer(feeRecipient, total);
+        // Accrued, not sent: a recipient that cannot receive (a paused or
+        // blocklisting token) must never be able to stop days being recorded,
+        // because those records are what reward accounting reads.
+        if (total > 0) {
+            totalStaked -= total;
+            pendingFees += total;
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Sweeps — permissionless, and only ever to the fee recipient
+    // ------------------------------------------------------------------
+
+    /// @notice Send accrued inactivity fees to the fee recipient. Anyone may
+    ///         call it; the destination is not the caller's to choose.
+    function sweepFees() external nonReentrant {
+        uint256 amount = pendingFees;
+        if (amount == 0) revert ZeroAmount();
+        pendingFees = 0;
+        address to = feeRecipient;
+        token.safeTransfer(to, amount);
+        emit FeesSwept(to, amount);
+    }
+
+    /// @notice Send tokens transferred to this contract outside `register` or
+    ///         `topUp` to the fee recipient. Cannot touch stake or pending
+    ///         fees: both are accounted, and only the surplus is movable.
+    function sweepExcess() external nonReentrant {
+        uint256 excess = token.balanceOf(address(this)) - totalStaked - pendingFees;
+        if (excess == 0) revert ZeroAmount();
+        address to = feeRecipient;
+        token.safeTransfer(to, excess);
+        emit ExcessSwept(to, excess);
     }
 
     // ------------------------------------------------------------------
@@ -251,11 +324,23 @@ contract PillarStaking is AccessControl, ReentrancyGuard {
     // Views — what Pillars and the portal read
     // ------------------------------------------------------------------
 
-    /// @notice Admitted to the mesh and earning: at least THRESHOLD staked
-    ///         and no unstake pending.
+    /// @notice Admitted to the mesh and earning: at least THRESHOLD staked,
+    ///         no unstake pending, and no inactive day recorded against it in
+    ///         the last INACTIVE_GRACE_DAYS days.
+    ///
+    ///         The liveness term is what actually ejects an offline Pillar.
+    ///         The stake term alone could not: the fee stops at FEE_FLOOR, so
+    ///         a Pillar staked well above THRESHOLD would stay admitted for as
+    ///         many days as it holds REFI above it. Nothing here takes more
+    ///         from an operator than before — it only stops paying for a
+    ///         buffer being mistaken for being online.
     function isActive(bytes32 pid) public view returns (bool) {
         Pillar storage p = _pillars[pid];
-        return p.operator != address(0) && p.unstakeRequestedAt == 0 && p.staked >= THRESHOLD;
+        if (p.operator == address(0) || p.unstakeRequestedAt != 0 || p.staked < THRESHOLD) {
+            return false;
+        }
+        if (p.lastInactiveDay == 0) return true;
+        return block.timestamp / 1 days > uint256(p.lastInactiveDay) + INACTIVE_GRACE_DAYS;
     }
 
     function pillarOf(bytes32 pid) external view returns (Pillar memory) {
